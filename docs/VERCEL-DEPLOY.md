@@ -17,7 +17,7 @@ git commit -m "Alien Music - listo para deploy"
 git remote add origin https://github.com/TU_USUARIO/alien-music.git
 git push -u origin main
 ```
-
+ as
 ## 2. Importar en Vercel
 
 1. Entra en [vercel.com/new](https://vercel.com/new)
