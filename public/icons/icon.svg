@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#121212"/>
+  <circle cx="256" cy="220" r="120" fill="#1DB954"/>
+  <ellipse cx="200" cy="200" rx="28" ry="40" fill="#121212"/>
+  <ellipse cx="312" cy="200" rx="28" ry="40" fill="#121212"/>
+  <path d="M180 280 Q256 340 332 280" stroke="#121212" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <text x="256" y="420" text-anchor="middle" fill="#1DB954" font-family="Arial,sans-serif" font-size="48" font-weight="bold">AM</text>
+</svg>
