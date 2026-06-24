@@ -1,30 +1,58 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import Link from "next/link";
 import {
+  ChevronDown,
   Loader2,
   ListMusic,
-  Mic2,
-  Minimize2,
+  MoreHorizontal,
+  MonitorSpeaker,
   Pause,
   Play,
   Repeat,
   Repeat1,
+  Share2,
   Shuffle,
   SkipBack,
   SkipForward,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
-import Link from "next/link";
-import { usePlayerStore, type VideoQuality } from "@/lib/stores/playerStore";
-import { useTrackLyrics } from "@/hooks/useTrackLyrics";
+import { usePlayerStore } from "@/lib/stores/playerStore";
 import { formatTime } from "@/lib/utils/format";
-import { AudioVisualizer } from "@/components/ui/AudioVisualizer";
 import { ImmersiveAuroraBackground } from "@/components/player/ImmersiveAuroraBackground";
-import { ImmersiveParticles } from "@/components/player/ImmersiveParticles";
+import { EphemeralLikeButton } from "@/components/search/EphemeralLikeButton";
+import { LikeButton } from "@/components/content/LikeButton";
+import { ShareWithFriendModal } from "@/components/share/ShareWithFriendModal";
+import { isEphemeralTrackId } from "@/types/music";
+
+function ControlWithIndicator({
+  active,
+  label,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex flex-col items-center p-2 transition-colors ${
+        active ? "text-accent" : "text-white/50 hover:text-white"
+      }`}
+      aria-label={label}
+    >
+      {children}
+      {active && (
+        <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-accent shadow-[0_0_6px_var(--accent)]" />
+      )}
+    </button>
+  );
+}
 
 export function ExpandedPlayer() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -34,10 +62,9 @@ export function ExpandedPlayer() {
   const isLoading = usePlayerStore((s) => s.isLoading);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
-  const volume = usePlayerStore((s) => s.volume);
-  const isMuted = usePlayerStore((s) => s.isMuted);
   const isShuffle = usePlayerStore((s) => s.isShuffle);
   const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const queue = usePlayerStore((s) => s.queue);
 
   const togglePlay = usePlayerStore((s) => s.togglePlay);
   const next = usePlayerStore((s) => s.next);
@@ -45,35 +72,10 @@ export function ExpandedPlayer() {
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
   const seek = usePlayerStore((s) => s.seek);
-  const setVolume = usePlayerStore((s) => s.setVolume);
-  const toggleMute = usePlayerStore((s) => s.toggleMute);
-  const toggleLyricsPanel = usePlayerStore((s) => s.toggleLyricsPanel);
-  const isLyricsOpen = usePlayerStore((s) => s.isLyricsOpen);
-  const videoQuality = usePlayerStore((s) => s.videoQuality);
-  const setVideoQuality = usePlayerStore((s) => s.setVideoQuality);
-  const autoplayEnabled = usePlayerStore((s) => s.autoplayEnabled);
-  const setAutoplayEnabled = usePlayerStore((s) => s.setAutoplayEnabled);
 
-  const cycleQuality = () => {
-    const order: VideoQuality[] = ["low", "normal", "high", "extreme"];
-    const idx = order.indexOf(videoQuality);
-    setVideoQuality(order[(idx + 1) % order.length]);
-  };
-
-  const qualityLabel =
-    videoQuality === "low"
-      ? "Baja"
-      : videoQuality === "high"
-        ? "Alta"
-        : videoQuality === "extreme"
-          ? "Extrema"
-          : "Normal";
-
-  const isVideo = currentTrack?.type === "video";
-  const { lyrics, loading: lyricsLoading, error: lyricsError } = useTrackLyrics(
-    currentTrack,
-    isExpandedMode && !isVideo,
-  );
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isExpandedMode) return;
@@ -84,272 +86,254 @@ export function ExpandedPlayer() {
     };
   }, [isExpandedMode]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen]);
+
   if (!isExpandedMode || !currentTrack) return null;
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const progressRatio = duration > 0 ? currentTime / duration : 0;
-  const volumePercent = (isMuted ? 0 : volume) * 100;
+  const isVideo = currentTrack.type === "video";
+
+  const contextLabel =
+    currentTrack.albumTitle && currentTrack.albumTitle !== currentTrack.title
+      ? currentTrack.albumTitle
+      : queue.length > 1
+        ? "Tu cola de reproducción"
+        : "Reproducción actual";
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: currentTrack.title,
+          text: `${currentTrack.title} — ${currentTrack.artistName}`,
+          url: window.location.href,
+        });
+        return;
+      } catch {
+        /* fallback modal */
+      }
+    }
+    setShareOpen(true);
+  };
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[70] flex flex-col overflow-hidden"
+    <div
+      className="fixed inset-0 z-[70] flex flex-col bg-black"
       role="dialog"
       aria-modal="true"
-      aria-label="Reproductor a pantalla completa"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.35 }}
+      aria-label="Reproductor expandido"
     >
       <ImmersiveAuroraBackground
         coverUrl={currentTrack.coverUrl}
         progress={progressRatio}
       />
-      <ImmersiveParticles
-        progress={progressRatio}
-        isPlaying={isPlaying}
-      />
 
-      <header className="relative z-10 flex items-center justify-between px-4 py-4 md:px-8">
+      {/* Header */}
+      <header className="relative z-10 grid grid-cols-[40px_1fr_40px] items-center px-4 py-3">
         <button
           type="button"
           onClick={() => setExpandedMode(false)}
-          className="glass-alien flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white transition-all hover:border-accent/50 hover:text-accent"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-colors hover:text-white"
+          aria-label="Minimizar reproductor"
         >
-          <Minimize2 size={16} />
-          <span className="hidden sm:inline">Salir de pantalla completa</span>
-          <span className="sm:hidden">Minimizar</span>
+          <ChevronDown size={28} />
         </button>
-        <div className="text-right">
-          <p className="font-display text-xs uppercase tracking-[0.2em] text-accent/90">
-            Modo inmersivo
+
+        <div className="min-w-0 px-2 text-center">
+          <p className="truncate text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
+            Reproduciendo desde
           </p>
-          <p className="text-sm text-white/70">{currentTrack.artistName}</p>
+          <p className="truncate text-xs font-semibold text-white/90">
+            {contextLabel}
+          </p>
+        </div>
+
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-colors hover:text-white"
+            aria-label="Más opciones"
+          >
+            <MoreHorizontal size={22} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-white/10 bg-surface-elevated py-1 shadow-xl backdrop-blur-xl">
+              <Link
+                href="/queue"
+                onClick={() => setExpandedMode(false)}
+                className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/5"
+              >
+                Ver cola completa
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 
-      <div
-        className={`relative z-10 flex flex-1 flex-col gap-6 px-4 pb-4 md:px-8 lg:flex-row lg:items-center lg:gap-12 ${
-          isVideo ? "lg:justify-start" : "lg:justify-center"
-        }`}
-      >
+      {/* Centro — carátula */}
+      <div className="relative z-10 flex flex-1 flex-col justify-center px-6 pb-2">
         {isVideo ? (
-          <>
-            <div
-              id="expanded-video-mount"
-              className="glass-alien relative mx-auto aspect-video w-full max-w-4xl shrink-0 overflow-hidden rounded-2xl shadow-[0_0_60px_rgba(0,255,159,0.12)] lg:mx-0 lg:w-[58%]"
-            />
-            <div className="flex flex-1 flex-col justify-center lg:max-w-md">
-              <h1 className="font-display text-2xl font-bold text-alien-gradient md:text-3xl">
-                {currentTrack.title}
-              </h1>
-              <p className="mt-1 text-lg text-white/70">{currentTrack.artistName}</p>
-              {isPlaying && (
-                <div className="mt-4">
-                  <AudioVisualizer active bars={5} />
-                </div>
-              )}
-            </div>
-          </>
+          <div
+            id="expanded-video-mount"
+            className="relative mx-auto aspect-video w-full max-w-lg overflow-hidden rounded-xl shadow-2xl"
+          />
         ) : (
-          <>
-            <motion.div
-              className="relative mx-auto h-56 w-56 shrink-0 overflow-hidden rounded-2xl ring-1 ring-accent/40 shadow-[0_0_80px_rgba(0,255,159,0.25)] md:h-72 md:w-72 lg:mx-0 lg:h-80 lg:w-80"
-              animate={isPlaying ? { y: [0, -4, 0] } : { y: 0 }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <Image
-                src={currentTrack.coverUrl}
-                alt={currentTrack.albumTitle}
-                fill
-                sizes="(max-width:768px) 224px, 320px"
-                className={`object-cover ${isPlaying ? "animate-alien-pulse" : ""}`}
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-accent/10" />
-            </motion.div>
-
-            <div className="flex min-h-0 flex-1 flex-col justify-center lg:max-w-xl">
-              <div className="glass-alien mb-4 rounded-2xl p-5">
-                <h1 className="font-display text-2xl font-bold text-alien-gradient md:text-4xl">
-                  {currentTrack.title}
-                </h1>
-                <p className="mt-2 text-lg text-white/75">{currentTrack.artistName}</p>
-                {isPlaying && (
-                  <div className="mt-3">
-                    <AudioVisualizer active bars={5} />
-                  </div>
-                )}
-              </div>
-
-              <div className="glass-alien min-h-[180px] flex-1 overflow-y-auto p-4 md:p-5">
-                {lyricsLoading && (
-                  <div className="flex items-center justify-center gap-2 py-8 text-text-muted">
-                    <Loader2 size={18} className="animate-spin text-accent" />
-                    Cargando letras...
-                  </div>
-                )}
-                {!lyricsLoading && lyrics && (
-                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/90 md:text-base">
-                    {lyrics}
-                  </pre>
-                )}
-                {!lyricsLoading && !lyrics && (
-                  <div className="flex flex-col items-center justify-center gap-4 py-8">
-                    {lyricsError ? (
-                      <p className="text-center text-sm text-white/60">{lyricsError}</p>
-                    ) : null}
-                    <AudioVisualizer active={isPlaying} bars={7} className="scale-125" />
-                    <p className="text-center text-xs text-white/50">
-                      Ondas interestelares sincronizadas con tu universo
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      <footer className="relative z-10 px-4 py-4 md:px-8">
-        <div className="glass-alien mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl p-4 md:p-5">
-          <div className="flex items-center gap-3">
-            <span className="w-10 shrink-0 text-right text-xs text-white/60">
-              {formatTime(currentTime)}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              step={0.1}
-              value={currentTime}
-              onChange={(e) => seek(Number(e.target.value))}
-              className="progress-range min-w-0 flex-1"
-              style={{ "--progress": `${progressPercent}%` } as React.CSSProperties}
-              aria-label="Progreso"
+          <div className="relative mx-auto aspect-square w-full max-w-[min(92vw,380px)] overflow-hidden rounded-lg shadow-[0_12px_48px_rgba(0,0,0,0.55)]">
+            <Image
+              src={currentTrack.coverUrl}
+              alt={currentTrack.albumTitle}
+              fill
+              sizes="(max-width:768px) 92vw, 380px"
+              className="object-cover"
+              priority
             />
-            <span className="w-10 shrink-0 text-xs text-white/60">
-              {formatTime(duration)}
-            </span>
           </div>
+        )}
 
-          <div className="flex flex-wrap items-center justify-center gap-2 md:justify-between">
-            <button
-              type="button"
-              onClick={toggleShuffle}
-              className={`p-2 transition-colors ${
-                isShuffle ? "text-accent" : "text-white/50 hover:text-white"
-              }`}
-              aria-label="Aleatorio"
-            >
-              <Shuffle size={18} />
-            </button>
-
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={previous}
-                className="text-white/60 transition-colors hover:text-accent"
-                aria-label="Anterior"
-              >
-                <SkipBack size={24} fill="currentColor" />
-              </button>
-              <button
-                type="button"
-                onClick={togglePlay}
-                disabled={isLoading && !isPlaying}
-                className="alien-btn-play flex h-14 w-14 items-center justify-center rounded-full disabled:opacity-80"
-                aria-label={isPlaying ? "Pausar" : "Reproducir"}
-              >
-                {isLoading && isPlaying ? (
-                  <Loader2 size={22} className="animate-spin text-black" />
-                ) : isPlaying ? (
-                  <Pause size={22} fill="currentColor" />
-                ) : (
-                  <Play size={22} fill="currentColor" className="ml-0.5" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={next}
-                className="text-white/60 transition-colors hover:text-accent"
-                aria-label="Siguiente"
-              >
-                <SkipForward size={24} fill="currentColor" />
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={cycleRepeat}
-              className={`p-2 transition-colors ${
-                repeatMode !== "off" ? "text-accent" : "text-white/50 hover:text-white"
-              }`}
-              aria-label="Repetir"
-            >
-              {repeatMode === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
-            </button>
+        {/* Info track */}
+        <div className="mx-auto mt-6 flex w-full max-w-[min(92vw,380px)] items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-2xl font-bold text-white">
+              {currentTrack.title}
+            </h1>
+            <p className="mt-0.5 truncate text-base text-white/55">
+              {currentTrack.artistName}
+            </p>
           </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-3">
-            <button
-              type="button"
-              onClick={cycleQuality}
-              className="glass-alien-pill text-xs font-medium text-white/60 transition-colors hover:text-accent"
-            >
-              Calidad: {qualityLabel}
-            </button>
-            <button
-              type="button"
-              onClick={toggleLyricsPanel}
-              className={`glass-alien-pill flex items-center gap-1 text-xs font-medium transition-colors ${
-                isLyricsOpen ? "text-accent" : "text-white/60 hover:text-white"
-              }`}
-            >
-              <Mic2 size={14} />
-              Letras
-            </button>
-            <Link
-              href="/queue"
-              onClick={() => setExpandedMode(false)}
-              className="glass-alien-pill flex items-center gap-1 text-xs font-medium text-white/60 transition-colors hover:text-accent"
-            >
-              <ListMusic size={14} />
-              Cola
-            </Link>
-            <button
-              type="button"
-              onClick={() => setAutoplayEnabled(!autoplayEnabled)}
-              className={`glass-alien-pill text-xs font-medium transition-colors ${
-                autoplayEnabled ? "text-accent" : "text-white/60"
-              }`}
-            >
-              Autoplay
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleMute}
-                className="text-white/60 hover:text-accent"
-                aria-label={isMuted ? "Activar sonido" : "Silenciar"}
-              >
-                {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={isMuted ? 0 : volume}
-                onChange={(e) => setVolume(Number(e.target.value))}
-                className="volume-range w-20 md:w-24"
-                style={{ "--volume": `${volumePercent}%` } as React.CSSProperties}
-                aria-label="Volumen"
-              />
-            </div>
+          <div className="shrink-0 pt-1">
+            {currentTrack.isEphemeral || isEphemeralTrackId(currentTrack.id) ? (
+              <EphemeralLikeButton track={currentTrack} size={26} className="opacity-100" />
+            ) : (
+              <LikeButton songId={currentTrack.id} size={26} className="opacity-100" />
+            )}
           </div>
         </div>
+      </div>
+
+      {/* Controles inferiores */}
+      <footer className="relative z-10 px-6 pb-6 pt-2">
+        {/* Progreso */}
+        <div className="mx-auto max-w-lg">
+          <input
+            type="range"
+            min={0}
+            max={duration || 100}
+            step={0.1}
+            value={currentTime}
+            onChange={(e) => seek(Number(e.target.value))}
+            className="progress-range expanded-progress w-full"
+            style={{ "--progress": `${progressPercent}%` } as React.CSSProperties}
+            aria-label="Progreso"
+          />
+          <div className="mt-1 flex justify-between text-xs text-white/50">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+
+        {/* Fila principal */}
+        <div className="mx-auto mt-4 flex max-w-md items-center justify-between">
+          <ControlWithIndicator
+            active={isShuffle}
+            label="Aleatorio"
+            onClick={toggleShuffle}
+          >
+            <Shuffle size={22} />
+          </ControlWithIndicator>
+
+          <button
+            type="button"
+            onClick={previous}
+            className="p-2 text-white/80 transition-colors hover:text-white"
+            aria-label="Anterior"
+          >
+            <SkipBack size={28} fill="currentColor" />
+          </button>
+
+          <button
+            type="button"
+            onClick={togglePlay}
+            disabled={isLoading && !isPlaying}
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-black shadow-lg transition-transform hover:scale-105 disabled:opacity-80"
+            aria-label={isPlaying ? "Pausar" : "Reproducir"}
+          >
+            {isLoading && isPlaying ? (
+              <Loader2 size={28} className="animate-spin" />
+            ) : isPlaying ? (
+              <Pause size={28} fill="currentColor" />
+            ) : (
+              <Play size={28} fill="currentColor" className="ml-0.5" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={next}
+            className="p-2 text-white/80 transition-colors hover:text-white"
+            aria-label="Siguiente"
+          >
+            <SkipForward size={28} fill="currentColor" />
+          </button>
+
+          <ControlWithIndicator
+            active={repeatMode !== "off"}
+            label="Repetir"
+            onClick={cycleRepeat}
+          >
+            {repeatMode === "one" ? <Repeat1 size={22} /> : <Repeat size={22} />}
+          </ControlWithIndicator>
+        </div>
+
+        {/* Barra herramientas */}
+        <div className="mx-auto mt-6 flex max-w-sm items-center justify-between text-white/55">
+          <button
+            type="button"
+            className="flex flex-col items-center gap-1 p-2 transition-colors hover:text-accent"
+            aria-label="Dispositivos conectados"
+            title="Dispositivos (próximamente)"
+          >
+            <MonitorSpeaker size={20} />
+            <span className="text-[10px]">Dispositivo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleShare}
+            className="flex flex-col items-center gap-1 p-2 transition-colors hover:text-accent"
+            aria-label="Compartir"
+          >
+            <Share2 size={20} />
+            <span className="text-[10px]">Compartir</span>
+          </button>
+
+          <Link
+            href="/queue"
+            onClick={() => setExpandedMode(false)}
+            className="flex flex-col items-center gap-1 p-2 transition-colors hover:text-accent"
+            aria-label="Cola de reproducción"
+          >
+            <ListMusic size={20} />
+            <span className="text-[10px]">Cola</span>
+          </Link>
+        </div>
       </footer>
-    </motion.div>
+
+      <ShareWithFriendModal
+        track={currentTrack}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+      />
+    </div>
   );
 }

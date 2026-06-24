@@ -12,20 +12,11 @@ import { usePlayerStore } from "@/lib/stores/playerStore";
 import { useSettingsStore } from "@/lib/stores/settingsStore";
 import { isMobileNetwork } from "@/lib/settings/storage";
 import { youtubeQualityConfig } from "@/lib/youtube/quality";
+import {
+  YOUTUBE_KEEPALIVE_STYLE,
+} from "@/lib/player/youtubeKeepaliveStyle";
 
 const ReactPlayerLazy = dynamic(() => import("react-player"), { ssr: false });
-
-/** Estilo mínimo 1×1 para mantener el iframe activo en segundo plano */
-const HIDDEN_PLAYER_STYLE: React.CSSProperties = {
-  position: "fixed",
-  bottom: 0,
-  left: 0,
-  width: 1,
-  height: 1,
-  opacity: 0,
-  pointerEvents: "none",
-  overflow: "hidden",
-};
 
 export function AudioEngine() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -69,7 +60,10 @@ export function AudioEngine() {
   const isMaximized =
     isExpandedMode || videoPanelMode === "maximized";
 
-  let containerClass = "pointer-events-none fixed overflow-hidden opacity-0";
+  /** El iframe 1×1 visible evita suspensión del SO en audio-only */
+  const useKeepaliveContainer = !isVideoMode;
+
+  let containerClass = "pointer-events-none fixed overflow-hidden";
 
   if (isVideoMode) {
     if (isExpandedMode) {
@@ -84,6 +78,8 @@ export function AudioEngine() {
     }
   }
 
+  const containerStyle = useKeepaliveContainer ? YOUTUBE_KEEPALIVE_STYLE : undefined;
+
   return (
     <>
       <audio
@@ -93,7 +89,6 @@ export function AudioEngine() {
         playsInline
       />
 
-      {/* Hilo de audio nativo silencioso — mantiene reproducción YouTube en segundo plano */}
       <audio
         ref={keepaliveRef}
         className="hidden"
@@ -105,7 +100,7 @@ export function AudioEngine() {
       {youtube.youtubeSrc && (
         <div
           className={containerClass}
-          style={isVideoMode ? undefined : HIDDEN_PLAYER_STYLE}
+          style={containerStyle}
           aria-hidden={!isVideoMode}
         >
           {isVideoMode && !isExpandedMode && (
@@ -143,7 +138,7 @@ export function AudioEngine() {
             style={
               isVideoMode
                 ? { width: "100%", height: "100%" }
-                : HIDDEN_PLAYER_STYLE
+                : YOUTUBE_KEEPALIVE_STYLE
             }
             config={{
               youtube: {

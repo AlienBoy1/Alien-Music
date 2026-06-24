@@ -5,12 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ContentHeader } from "@/components/content/ContentHeader";
 import { SongRow } from "@/components/content/SongRow";
-import { YouTubeSearchRow } from "@/components/search/YouTubeSearchRow";
 import { SearchFilterPills } from "@/components/search/SearchFilterPills";
-import { PlaylistSearchRow } from "@/components/search/PlaylistSearchRow";
+import { SearchTopResult } from "@/components/search/SearchTopResult";
+import {
+  SearchHorizontalCarousel,
+  type CarouselCard,
+} from "@/components/search/SearchHorizontalCarousel";
+import { SearchVideoCarousel } from "@/components/search/SearchVideoCarousel";
 import { searchMusicAction } from "@/app/actions/search";
+import { pickSearchTopResult } from "@/lib/search/topResult";
 import { useSearchStore } from "@/lib/stores/searchStore";
 import { useOfflineStore } from "@/lib/stores/offlineStore";
+import { usePlayerStore } from "@/lib/stores/playerStore";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import type { CommunityPlaylistHit } from "@/lib/db/community";
@@ -20,7 +26,7 @@ import type {
   YouTubeSearchItem,
 } from "@/lib/youtube/types";
 import type { Playlist, PlayerTrack, SearchResult } from "@/types/music";
-import { youtubeItemToPlayerTrack } from "@/types/music";
+import { songToPlayerTrack, youtubeItemToPlayerTrack } from "@/types/music";
 
 interface SearchPageClientProps {
   playlists?: Playlist[];
@@ -68,6 +74,7 @@ export default function SearchPageClient({
   const storeQuery = useSearchStore((s) => s.query);
   const setQuery = useSearchStore((s) => s.setQuery);
   const isOnline = useOfflineStore((s) => s.isOnline);
+  const playCollection = usePlayerStore((s) => s.playCollection);
 
   const [filter, setFilter] = useState<SearchContentFilter>(
     VALID_FILTERS.includes(urlFilter as SearchContentFilter)
@@ -162,7 +169,9 @@ export default function SearchPageClient({
     const run = async () => {
       try {
         const local =
-          filter === "playlists" ? { songs: [], artists: [], albums: [] } : await searchMusicAction(q);
+          filter === "playlists"
+            ? { songs: [], artists: [], albums: [] }
+            : await searchMusicAction(q);
 
         if (cancelled) return;
         setLocalResults(local);
@@ -215,9 +224,117 @@ export default function SearchPageClient({
     [youtubeItems],
   );
 
+  const topResult = useMemo(
+    () =>
+      debouncedQuery.trim()
+        ? pickSearchTopResult(
+            debouncedQuery,
+            localResults,
+            youtubeItems,
+            youtubeTracks,
+          )
+        : null,
+    [debouncedQuery, localResults, youtubeItems, youtubeTracks],
+  );
+
+  const videoItems = useMemo(
+    () => youtubeItems.filter((i) => i.kind === "video"),
+    [youtubeItems],
+  );
+
+  const songItems = useMemo(
+    () =>
+      youtubeItems.filter(
+        (i) => i.kind !== "video" && i.category !== "podcast",
+      ),
+    [youtubeItems],
+  );
+
+  const albumCards: CarouselCard[] = useMemo(() => {
+    const localAlbums =
+      localResults?.albums.map((a) => ({
+        id: `album:${a.title}:${a.artist}`,
+        title: a.title,
+        subtitle: a.artist,
+        imageUrl: a.coverUrl,
+        onClick: () => {
+          const songs = localResults?.songs.filter(
+            (s) => s.albumTitle === a.title && s.artist === a.artist,
+          );
+          if (songs?.length) {
+            playCollection(songs.map(songToPlayerTrack), 0);
+          }
+        },
+      })) ?? [];
+
+    return localAlbums;
+  }, [localResults, playCollection]);
+
+  const artistCards: CarouselCard[] = useMemo(() => {
+    const fromLocal =
+      localResults?.artists.map((name) => {
+        const songs =
+          localResults?.songs.filter((s) => s.artist === name) ?? [];
+        const cover = songs[0]?.coverUrl;
+        return {
+          id: `artist:${name}`,
+          title: name,
+          subtitle: "Artista",
+          imageUrl: cover,
+          isCircular: true,
+          onClick: () => {
+            if (songs.length) {
+              playCollection(songs.map(songToPlayerTrack), 0);
+            }
+          },
+        };
+      }) ?? [];
+
+    const seen = new Set(fromLocal.map((a) => a.title.toLowerCase()));
+    const fromYt = youtubeItems
+      .filter((i) => !seen.has(i.channelTitle.toLowerCase()))
+      .slice(0, 8)
+      .map((i) => ({
+        id: `yt-artist:${i.channelTitle}`,
+        title: i.channelTitle,
+        subtitle: "Artista",
+        imageUrl: i.thumbnailUrl,
+        isCircular: true,
+        onClick: () => {
+          const related = youtubeItems.filter(
+            (x) => x.channelTitle === i.channelTitle,
+          );
+          playCollection(
+            related.map((r) => youtubeItemToPlayerTrack(r)),
+            0,
+          );
+        },
+      }));
+
+    return [...fromLocal, ...fromYt].slice(0, 12);
+  }, [localResults, youtubeItems, playCollection]);
+
+  const playlistCards: CarouselCard[] = useMemo(() => {
+    const community: CarouselCard[] = communityPlaylists.map((pl) => ({
+      id: pl.id,
+      title: pl.name,
+      subtitle: "Playlist comunitaria",
+      href: `/playlists/${pl.id}`,
+    }));
+
+    const yt: CarouselCard[] = youtubePlaylists.map((pl) => ({
+      id: pl.playlistId,
+      title: pl.title,
+      subtitle: pl.channelTitle,
+      imageUrl: pl.thumbnailUrl,
+    }));
+
+    return [...community, ...yt];
+  }, [communityPlaylists, youtubePlaylists]);
+
+  const showPlaylists = filter === "all" || filter === "playlists";
   const showVideos =
     filter === "all" || filter === "songs" || filter === "videos" || filter === "podcasts";
-  const showPlaylists = filter === "all" || filter === "playlists";
 
   const isEmpty =
     !loading &&
@@ -226,15 +343,6 @@ export default function SearchPageClient({
     youtubePlaylists.length === 0 &&
     communityPlaylists.length === 0 &&
     (!localResults || localResults.songs.length === 0);
-
-  const sectionTitle =
-    filter === "podcasts"
-      ? "Podcasts"
-      : filter === "videos"
-        ? "Videos"
-        : filter === "songs"
-          ? "Canciones"
-          : "Canciones / Videos";
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -252,7 +360,7 @@ export default function SearchPageClient({
 
       {!isOnline && (
         <div className="mb-4 rounded-lg border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent">
-          Modo offline activo — la búsqueda en YouTube está deshabilitada. Reproduce tu música descargada desde Tu biblioteca.
+          Modo offline — YouTube desactivado. Reproduce descargas desde Tu biblioteca.
         </div>
       )}
 
@@ -274,55 +382,72 @@ export default function SearchPageClient({
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
       {!loading && debouncedQuery.trim() && (
-        <div className="space-y-8 animate-fade-in-up">
-          {showPlaylists &&
-            (communityPlaylists.length > 0 || youtubePlaylists.length > 0) && (
-              <section>
-                <h2 className="font-display mb-4 text-xl font-bold tracking-wide text-alien-gradient">
-                  Playlists
-                </h2>
-                <div className="flex flex-col gap-1">
-                  {communityPlaylists.map((pl) => (
-                    <PlaylistSearchRow key={pl.id} community={pl} />
-                  ))}
-                  {youtubePlaylists.map((pl) => (
-                    <PlaylistSearchRow
-                      key={pl.playlistId}
-                      youtube={pl}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
+        <div className="space-y-2 animate-fade-in-up">
+          {topResult && filter !== "playlists" && (
+            <SearchTopResult result={topResult} />
+          )}
 
-          {showVideos && youtubeItems.length > 0 && (
-            <section className="content-optimize">
-              <h2 className="font-display mb-4 text-xl font-bold tracking-wide text-alien-gradient beam-underline inline-block">
-                {sectionTitle}
-              </h2>
-              <div className="flex flex-col gap-1">
-                {youtubeItems.map((item, i) => (
-                  <YouTubeSearchRow
-                    key={item.youtubeId}
-                    item={item}
-                    track={youtubeTracks[i]}
-                    index={i}
-                    allTracks={youtubeTracks}
-                    playlists={playlists}
-                    isAuthenticated={!!session}
-                    currentUserId={currentUserId ?? session?.user?.id}
-                  />
-                ))}
+          {showPlaylists && playlistCards.length > 0 && (
+            <SearchHorizontalCarousel
+              title="Playlists públicas"
+              items={playlistCards}
+            />
+          )}
+
+          {filter !== "playlists" && albumCards.length > 0 && (
+            <SearchHorizontalCarousel title="Álbumes" items={albumCards} />
+          )}
+
+          {filter !== "playlists" && artistCards.length > 0 && (
+            <SearchHorizontalCarousel
+              title="Artistas relacionados"
+              items={artistCards}
+            />
+          )}
+
+          {showVideos && videoItems.length > 0 && (
+            <SearchVideoCarousel items={videoItems} allTracks={youtubeTracks} />
+          )}
+
+          {showVideos && songItems.length > 0 && (
+            <section className="mb-8">
+              <h2 className="mb-4 text-xl font-bold text-white">Canciones</h2>
+              <div className="flex flex-col gap-0.5">
+                {songItems.slice(0, 15).map((item, i) => {
+                  const trackIndex = youtubeItems.findIndex(
+                    (x) => x.youtubeId === item.youtubeId,
+                  );
+                  const track = youtubeTracks[trackIndex];
+                  if (!track) return null;
+                  return (
+                    <button
+                      key={item.youtubeId}
+                      type="button"
+                      onClick={() =>
+                        playCollection(youtubeTracks, trackIndex)
+                      }
+                      className="flex items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-surface-highlight"
+                    >
+                      <span className="w-5 text-center text-sm text-text-muted">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-white">
+                        {item.title}
+                      </span>
+                      <span className="truncate text-xs text-text-muted">
+                        {item.channelTitle}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </section>
           )}
 
           {filter === "all" && localResults && localResults.songs.length > 0 && (
-            <section>
-              <h2 className="font-display mb-3 text-lg font-bold tracking-wide text-text-muted">
-                Catálogo local
-              </h2>
-              <div className="flex flex-col gap-1">
+            <section className="mb-8">
+              <h2 className="mb-3 text-lg font-bold text-white">Catálogo local</h2>
+              <div className="flex flex-col gap-0.5">
                 {localResults.songs.map((song, i) => (
                   <SongRow
                     key={song.id}
