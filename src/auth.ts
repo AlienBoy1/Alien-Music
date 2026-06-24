@@ -77,7 +77,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           secret: process.env.SUPABASE_SECRET_KEY,
         })
       : undefined,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60,
+  },
   pages: {
     signIn: "/login",
     newUser: "/your-library",

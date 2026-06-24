@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import {
   Loader2,
   ListMusic,
@@ -22,6 +23,8 @@ import { usePlayerStore, type VideoQuality } from "@/lib/stores/playerStore";
 import { useTrackLyrics } from "@/hooks/useTrackLyrics";
 import { formatTime } from "@/lib/utils/format";
 import { AudioVisualizer } from "@/components/ui/AudioVisualizer";
+import { ImmersiveAuroraBackground } from "@/components/player/ImmersiveAuroraBackground";
+import { ImmersiveParticles } from "@/components/player/ImmersiveParticles";
 
 export function ExpandedPlayer() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -84,63 +87,63 @@ export function ExpandedPlayer() {
   if (!isExpandedMode || !currentTrack) return null;
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progressRatio = duration > 0 ? currentTime / duration : 0;
   const volumePercent = (isMuted ? 0 : volume) * 100;
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex flex-col overflow-hidden animate-fade-in-up"
+    <motion.div
+      className="fixed inset-0 z-[70] flex flex-col overflow-hidden"
       role="dialog"
       aria-modal="true"
       aria-label="Reproductor a pantalla completa"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.35 }}
     >
-      {/* Fondo cinematográfico difuminado */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <Image
-          src={currentTrack.coverUrl}
-          alt=""
-          fill
-          sizes="100vw"
-          className="scale-110 object-cover opacity-60 blur-[64px]"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-surface/70 to-black/90" />
-        <div className="absolute inset-0 animate-cosmic-drift bg-[radial-gradient(ellipse_at_30%_20%,rgba(0,255,159,0.12),transparent_50%),radial-gradient(ellipse_at_70%_80%,rgba(168,85,247,0.1),transparent_45%)]" />
-      </div>
+      <ImmersiveAuroraBackground
+        coverUrl={currentTrack.coverUrl}
+        progress={progressRatio}
+      />
+      <ImmersiveParticles
+        progress={progressRatio}
+        isPlaying={isPlaying}
+      />
 
       <header className="relative z-10 flex items-center justify-between px-4 py-4 md:px-8">
         <button
           type="button"
           onClick={() => setExpandedMode(false)}
-          className="flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-4 py-2 text-sm font-medium text-white backdrop-blur-md transition-all hover:border-accent/40 hover:text-accent"
+          className="glass-alien flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white transition-all hover:border-accent/50 hover:text-accent"
         >
           <Minimize2 size={16} />
-          Salir de pantalla completa
+          <span className="hidden sm:inline">Salir de pantalla completa</span>
+          <span className="sm:hidden">Minimizar</span>
         </button>
-        <div className="hidden text-right md:block">
-          <p className="font-display text-xs uppercase tracking-widest text-accent/80">
+        <div className="text-right">
+          <p className="font-display text-xs uppercase tracking-[0.2em] text-accent/90">
             Modo inmersivo
           </p>
-          <p className="text-sm text-text-muted">{currentTrack.artistName}</p>
+          <p className="text-sm text-white/70">{currentTrack.artistName}</p>
         </div>
       </header>
 
       <div
-        className={`relative z-10 flex flex-1 flex-col gap-6 px-4 pb-8 md:px-8 lg:flex-row lg:items-center lg:gap-12 ${
+        className={`relative z-10 flex flex-1 flex-col gap-6 px-4 pb-4 md:px-8 lg:flex-row lg:items-center lg:gap-12 ${
           isVideo ? "lg:justify-start" : "lg:justify-center"
         }`}
       >
         {isVideo ? (
           <>
-            {/* Slot visual: el iframe de YouTube se posiciona aquí vía AudioEngine */}
             <div
               id="expanded-video-mount"
-              className="relative mx-auto aspect-video w-full max-w-4xl shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/50 shadow-[0_0_60px_rgba(0,255,159,0.08)] backdrop-blur-sm lg:mx-0 lg:w-[58%]"
+              className="glass-alien relative mx-auto aspect-video w-full max-w-4xl shrink-0 overflow-hidden rounded-2xl shadow-[0_0_60px_rgba(0,255,159,0.12)] lg:mx-0 lg:w-[58%]"
             />
             <div className="flex flex-1 flex-col justify-center lg:max-w-md">
-              <h1 className="font-display text-2xl font-bold text-white md:text-3xl">
+              <h1 className="font-display text-2xl font-bold text-alien-gradient md:text-3xl">
                 {currentTrack.title}
               </h1>
-              <p className="mt-1 text-lg text-text-muted">{currentTrack.artistName}</p>
+              <p className="mt-1 text-lg text-white/70">{currentTrack.artistName}</p>
               {isPlaying && (
                 <div className="mt-4">
                   <AudioVisualizer active bars={5} />
@@ -150,7 +153,11 @@ export function ExpandedPlayer() {
           </>
         ) : (
           <>
-            <div className="relative mx-auto h-56 w-56 shrink-0 overflow-hidden rounded-2xl shadow-[0_0_80px_rgba(0,255,159,0.2)] ring-1 ring-accent/30 md:h-72 md:w-72 lg:mx-0 lg:h-80 lg:w-80">
+            <motion.div
+              className="relative mx-auto h-56 w-56 shrink-0 overflow-hidden rounded-2xl ring-1 ring-accent/40 shadow-[0_0_80px_rgba(0,255,159,0.25)] md:h-72 md:w-72 lg:mx-0 lg:h-80 lg:w-80"
+              animate={isPlaying ? { y: [0, -4, 0] } : { y: 0 }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            >
               <Image
                 src={currentTrack.coverUrl}
                 alt={currentTrack.albumTitle}
@@ -159,15 +166,23 @@ export function ExpandedPlayer() {
                 className={`object-cover ${isPlaying ? "animate-alien-pulse" : ""}`}
                 priority
               />
-            </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-accent/10" />
+            </motion.div>
 
             <div className="flex min-h-0 flex-1 flex-col justify-center lg:max-w-xl">
-              <h1 className="font-display text-2xl font-bold text-alien-gradient md:text-4xl">
-                {currentTrack.title}
-              </h1>
-              <p className="mt-2 text-lg text-text-muted">{currentTrack.artistName}</p>
+              <div className="glass-alien mb-4 rounded-2xl p-5">
+                <h1 className="font-display text-2xl font-bold text-alien-gradient md:text-4xl">
+                  {currentTrack.title}
+                </h1>
+                <p className="mt-2 text-lg text-white/75">{currentTrack.artistName}</p>
+                {isPlaying && (
+                  <div className="mt-3">
+                    <AudioVisualizer active bars={5} />
+                  </div>
+                )}
+              </div>
 
-              <div className="mt-6 min-h-[180px] flex-1 overflow-y-auto rounded-xl border border-white/5 bg-black/30 p-4 backdrop-blur-md">
+              <div className="glass-alien min-h-[180px] flex-1 overflow-y-auto p-4 md:p-5">
                 {lyricsLoading && (
                   <div className="flex items-center justify-center gap-2 py-8 text-text-muted">
                     <Loader2 size={18} className="animate-spin text-accent" />
@@ -175,18 +190,18 @@ export function ExpandedPlayer() {
                   </div>
                 )}
                 {!lyricsLoading && lyrics && (
-                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/85 md:text-base">
+                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-white/90 md:text-base">
                     {lyrics}
                   </pre>
                 )}
                 {!lyricsLoading && !lyrics && (
                   <div className="flex flex-col items-center justify-center gap-4 py-8">
                     {lyricsError ? (
-                      <p className="text-center text-sm text-text-muted">{lyricsError}</p>
+                      <p className="text-center text-sm text-white/60">{lyricsError}</p>
                     ) : null}
                     <AudioVisualizer active={isPlaying} bars={7} className="scale-125" />
-                    <p className="text-center text-xs text-text-muted">
-                      Disfruta las ondas mientras suena tu universo
+                    <p className="text-center text-xs text-white/50">
+                      Ondas interestelares sincronizadas con tu universo
                     </p>
                   </div>
                 )}
@@ -196,10 +211,10 @@ export function ExpandedPlayer() {
         )}
       </div>
 
-      <footer className="relative z-10 border-t border-white/10 bg-black/50 px-4 py-4 backdrop-blur-xl md:px-8">
-        <div className="mx-auto flex max-w-3xl flex-col gap-3">
+      <footer className="relative z-10 px-4 py-4 md:px-8">
+        <div className="glass-alien mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl p-4 md:p-5">
           <div className="flex items-center gap-3">
-            <span className="w-10 shrink-0 text-right text-xs text-text-muted">
+            <span className="w-10 shrink-0 text-right text-xs text-white/60">
               {formatTime(currentTime)}
             </span>
             <input
@@ -213,7 +228,7 @@ export function ExpandedPlayer() {
               style={{ "--progress": `${progressPercent}%` } as React.CSSProperties}
               aria-label="Progreso"
             />
-            <span className="w-10 shrink-0 text-xs text-text-muted">
+            <span className="w-10 shrink-0 text-xs text-white/60">
               {formatTime(duration)}
             </span>
           </div>
@@ -223,7 +238,7 @@ export function ExpandedPlayer() {
               type="button"
               onClick={toggleShuffle}
               className={`p-2 transition-colors ${
-                isShuffle ? "text-accent" : "text-text-muted hover:text-white"
+                isShuffle ? "text-accent" : "text-white/50 hover:text-white"
               }`}
               aria-label="Aleatorio"
             >
@@ -234,7 +249,7 @@ export function ExpandedPlayer() {
               <button
                 type="button"
                 onClick={previous}
-                className="text-text-muted transition-colors hover:text-accent"
+                className="text-white/60 transition-colors hover:text-accent"
                 aria-label="Anterior"
               >
                 <SkipBack size={24} fill="currentColor" />
@@ -257,7 +272,7 @@ export function ExpandedPlayer() {
               <button
                 type="button"
                 onClick={next}
-                className="text-text-muted transition-colors hover:text-accent"
+                className="text-white/60 transition-colors hover:text-accent"
                 aria-label="Siguiente"
               >
                 <SkipForward size={24} fill="currentColor" />
@@ -268,7 +283,7 @@ export function ExpandedPlayer() {
               type="button"
               onClick={cycleRepeat}
               className={`p-2 transition-colors ${
-                repeatMode !== "off" ? "text-accent" : "text-text-muted hover:text-white"
+                repeatMode !== "off" ? "text-accent" : "text-white/50 hover:text-white"
               }`}
               aria-label="Repetir"
             >
@@ -276,21 +291,19 @@ export function ExpandedPlayer() {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/5 pt-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-3">
             <button
               type="button"
               onClick={cycleQuality}
-              className="rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent/40 hover:text-accent"
+              className="glass-alien-pill text-xs font-medium text-white/60 transition-colors hover:text-accent"
             >
               Calidad: {qualityLabel}
             </button>
             <button
               type="button"
               onClick={toggleLyricsPanel}
-              className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                isLyricsOpen
-                  ? "border-accent/40 text-accent"
-                  : "border-white/10 text-text-muted hover:text-white"
+              className={`glass-alien-pill flex items-center gap-1 text-xs font-medium transition-colors ${
+                isLyricsOpen ? "text-accent" : "text-white/60 hover:text-white"
               }`}
             >
               <Mic2 size={14} />
@@ -299,7 +312,7 @@ export function ExpandedPlayer() {
             <Link
               href="/queue"
               onClick={() => setExpandedMode(false)}
-              className="flex items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent/40 hover:text-accent"
+              className="glass-alien-pill flex items-center gap-1 text-xs font-medium text-white/60 transition-colors hover:text-accent"
             >
               <ListMusic size={14} />
               Cola
@@ -307,10 +320,8 @@ export function ExpandedPlayer() {
             <button
               type="button"
               onClick={() => setAutoplayEnabled(!autoplayEnabled)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                autoplayEnabled
-                  ? "border-accent/40 text-accent"
-                  : "border-white/10 text-text-muted"
+              className={`glass-alien-pill text-xs font-medium transition-colors ${
+                autoplayEnabled ? "text-accent" : "text-white/60"
               }`}
             >
               Autoplay
@@ -319,7 +330,7 @@ export function ExpandedPlayer() {
               <button
                 type="button"
                 onClick={toggleMute}
-                className="text-text-muted hover:text-accent"
+                className="text-white/60 hover:text-accent"
                 aria-label={isMuted ? "Activar sonido" : "Silenciar"}
               >
                 {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
@@ -339,6 +350,6 @@ export function ExpandedPlayer() {
           </div>
         </div>
       </footer>
-    </div>
+    </motion.div>
   );
 }

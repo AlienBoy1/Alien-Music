@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { ListPlus, MoreHorizontal, Share2 } from "lucide-react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { ShareWithFriendModal } from "@/components/share/ShareWithFriendModal";
+import { DownloadButton } from "@/components/offline/DownloadButton";
 import type { PlayerTrack } from "@/types/music";
 
 interface TrackActionsMenuProps {
@@ -75,6 +76,7 @@ export function TrackActionsMenu({
               <Share2 size={14} />
               Compartir con un amigo
             </button>
+            <DownloadButton track={track} variant="menu" />
             {extraItems}
           </div>
         )}

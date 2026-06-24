@@ -5,19 +5,21 @@ import { usePlayerStore } from "@/lib/stores/playerStore";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { SILENCE_MP3_DATA_URI } from "@/lib/audio/silenceUri";
 import {
-  setMediaSessionPlaybackState,
-  updateMediaSessionMetadata,
-} from "@/lib/media/mediaSession";
+  attachSilentAudioGuard,
+  bindSilentAudioToMediaSession,
+} from "@/lib/media/silentAudioSession";
 
 /**
- * Audio silencioso en bucle — engaña al SO móvil para mantener la PWA despierta
- * mientras YouTube reproduce en react-player.
+ * Audio silencioso en bucle — mantiene el hilo de audio nativo activo
+ * y sincronizado con MediaSession mientras YouTube reproduce en react-player.
  */
 export function useSilentAudioKeepalive() {
   const keepaliveRef = useRef<HTMLAudioElement | null>(null);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const playbackSource = usePlayerStore((s) => s.playbackSource);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
   const pageVisible = usePageVisibility();
 
   const youtubeActive =
@@ -43,28 +45,70 @@ export function useSilentAudioKeepalive() {
       audio.load();
     }
 
+    bindSilentAudioToMediaSession(
+      audio,
+      currentTrack,
+      true,
+      currentTime,
+      duration,
+    );
+
     const startKeepalive = () => {
-      void audio.play().catch(() => {
-        /* requiere gesto del usuario — se reintenta al volver visible */
-      });
+      bindSilentAudioToMediaSession(
+        audio,
+        currentTrack,
+        true,
+        currentTime,
+        duration,
+      );
+      void audio.play().catch(() => {});
     };
 
     startKeepalive();
 
-    if (!pageVisible) {
-      updateMediaSessionMetadata(currentTrack);
-      setMediaSessionPlaybackState(true);
-    }
+    const detachGuard = attachSilentAudioGuard(audio, () => {
+      const state = usePlayerStore.getState();
+      return (
+        state.playbackSource === "youtube" &&
+        Boolean(state.currentTrack?.youtubeId) &&
+        state.isPlaying
+      );
+    });
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && isPlaying && youtubeActive) {
+      const state = usePlayerStore.getState();
+      if (
+        document.visibilityState === "hidden" &&
+        state.isPlaying &&
+        state.playbackSource === "youtube"
+      ) {
+        bindSilentAudioToMediaSession(
+          audio,
+          state.currentTrack,
+          true,
+          state.currentTime,
+          state.duration,
+        );
+        void audio.play().catch(() => {});
+      } else if (document.visibilityState === "visible" && state.isPlaying) {
         startKeepalive();
       }
     };
 
     document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [youtubeActive, isPlaying, pageVisible, currentTrack]);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      detachGuard();
+    };
+  }, [
+    youtubeActive,
+    isPlaying,
+    pageVisible,
+    currentTrack,
+    currentTime,
+    duration,
+  ]);
 
   return keepaliveRef;
 }

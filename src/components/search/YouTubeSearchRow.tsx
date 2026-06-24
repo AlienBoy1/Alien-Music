@@ -6,6 +6,7 @@ import { usePlayerStore } from "@/lib/stores/playerStore";
 import { formatTime } from "@/lib/utils/format";
 import { EphemeralLikeButton } from "@/components/search/EphemeralLikeButton";
 import { EphemeralPlaylistMenu } from "@/components/search/EphemeralPlaylistMenu";
+import { DownloadButton } from "@/components/offline/DownloadButton";
 import type { YouTubeSearchItem } from "@/lib/youtube/types";
 import type { PlayerTrack, Playlist } from "@/types/music";
 import { youtubeItemToPlayerTrack } from "@/types/music";
@@ -131,6 +132,7 @@ export function YouTubeSearchRow({
       </button>
 
       <EphemeralLikeButton track={track} />
+      <DownloadButton track={track} />
       <EphemeralPlaylistMenu
         track={track}
         playlists={playlists}

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
+import { useMediaSession } from "@/hooks/useMediaSession";
 import { useBackgroundPlayback } from "@/hooks/useBackgroundPlayback";
 import { useSilentAudioKeepalive } from "@/hooks/useSilentAudioKeepalive";
 import { usePlayerStore } from "@/lib/stores/playerStore";
@@ -32,6 +33,7 @@ export function AudioEngine() {
   const keepaliveRef = useSilentAudioKeepalive();
 
   useAudioPlayer(audioRef);
+  useMediaSession();
   const { forceBackgroundAudioOnly, isSlowNetwork } =
     useBackgroundPlayback(audioRef);
 

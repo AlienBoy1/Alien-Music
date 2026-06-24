@@ -10,6 +10,8 @@ import { CosmicBackground } from "@/components/ui/CosmicBackground";
 import { SettingsProvider } from "@/components/providers/SettingsProvider";
 import { PlayerPersistProvider } from "@/components/providers/PlayerPersistProvider";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { OfflineBanner } from "@/components/offline/OfflineBanner";
+import { useOfflineMode } from "@/hooks/useOfflineMode";
 import type { Playlist } from "@/types/music";
 import type { Session } from "next-auth";
 
@@ -28,6 +30,8 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, session, playlists }: AppShellProps) {
+  useOfflineMode();
+
   return (
     <SettingsProvider>
       <PlayerPersistProvider>
@@ -35,6 +39,7 @@ export function AppShell({ children, session, playlists }: AppShellProps) {
           <CosmicBackground />
           <Sidebar session={session} playlists={playlists} />
           <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+            <OfflineBanner />
             <TopBar session={session} playlists={playlists} />
             <main className="flex-1 overflow-y-auto bg-gradient-to-b from-surface-highlight/30 via-surface/50 to-surface pb-[calc(var(--player-height)+var(--mobile-nav-height))] md:pb-[var(--player-height)]">
               {children}

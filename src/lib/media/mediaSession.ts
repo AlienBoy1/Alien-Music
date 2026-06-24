@@ -1,5 +1,5 @@
 import { usePlayerStore } from "@/lib/stores/playerStore";
-import type { PlayerTrack } from "@/types/music";
+import type { PlayerTrack, RepeatMode } from "@/types/music";
 import {
   buildCoverArtwork,
   buildYoutubeArtwork,
@@ -70,14 +70,53 @@ export function setMediaSessionPlaybackState(isPlaying: boolean): void {
   navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
 }
 
+/** Sincroniza estado de aleatorio/repetir con handlers nativos extendidos */
+export function syncMediaSessionModes(
+  isShuffle: boolean,
+  repeatMode: RepeatMode,
+): void {
+  if (!("mediaSession" in navigator)) return;
+
+  const ms = navigator.mediaSession as MediaSession & {
+    setShuffleActive?: (active: boolean) => void;
+    setRepeatMode?: (mode: "none" | "track" | "playlist") => void;
+  };
+
+  try {
+    ms.setShuffleActive?.(isShuffle);
+  } catch {
+    /* no soportado */
+  }
+
+  try {
+    const repeatMap: Record<RepeatMode, "none" | "track" | "playlist"> = {
+      off: "none",
+      one: "track",
+      all: "playlist",
+    };
+    ms.setRepeatMode?.(repeatMap[repeatMode]);
+  } catch {
+    /* no soportado */
+  }
+}
+
 const SEEK_STEP_SECONDS = 10;
 
+const EXTENDED_ACTIONS = [
+  "toggleshuffle",
+  "toggleRepeat",
+  "repeat",
+] as const;
+
 function safeSetHandler(
-  action: MediaSessionAction,
+  action: MediaSessionAction | (typeof EXTENDED_ACTIONS)[number],
   handler: MediaSessionActionHandler | null,
 ): void {
   try {
-    navigator.mediaSession.setActionHandler(action, handler);
+    navigator.mediaSession.setActionHandler(
+      action as MediaSessionAction,
+      handler,
+    );
   } catch {
     // Acción no soportada en este navegador/OS
   }
@@ -127,13 +166,27 @@ export function registerMediaSessionActionHandlers(): void {
     store.pause();
     store.seek(0);
   });
+
+  safeSetHandler("toggleshuffle", () => {
+    usePlayerStore.getState().toggleShuffle();
+    const { isShuffle, repeatMode } = usePlayerStore.getState();
+    syncMediaSessionModes(isShuffle, repeatMode);
+  });
+
+  for (const action of ["toggleRepeat", "repeat"] as const) {
+    safeSetHandler(action, () => {
+      usePlayerStore.getState().cycleRepeat();
+      const { isShuffle, repeatMode } = usePlayerStore.getState();
+      syncMediaSessionModes(isShuffle, repeatMode);
+    });
+  }
 }
 
 export function clearMediaSessionActionHandlers(): void {
   if (!("mediaSession" in navigator) || !handlersRegistered) return;
   handlersRegistered = false;
 
-  const actions: MediaSessionAction[] = [
+  const actions: (MediaSessionAction | (typeof EXTENDED_ACTIONS)[number])[] = [
     "play",
     "pause",
     "previoustrack",
@@ -142,6 +195,7 @@ export function clearMediaSessionActionHandlers(): void {
     "seekbackward",
     "seekforward",
     "stop",
+    ...EXTENDED_ACTIONS,
   ];
 
   for (const action of actions) {

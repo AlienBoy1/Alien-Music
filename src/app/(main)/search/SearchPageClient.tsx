@@ -10,6 +10,7 @@ import { SearchFilterPills } from "@/components/search/SearchFilterPills";
 import { PlaylistSearchRow } from "@/components/search/PlaylistSearchRow";
 import { searchMusicAction } from "@/app/actions/search";
 import { useSearchStore } from "@/lib/stores/searchStore";
+import { useOfflineStore } from "@/lib/stores/offlineStore";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import type { CommunityPlaylistHit } from "@/lib/db/community";
@@ -66,6 +67,7 @@ export default function SearchPageClient({
   const urlFilter = searchParams.get("filter") ?? "all";
   const storeQuery = useSearchStore((s) => s.query);
   const setQuery = useSearchStore((s) => s.setQuery);
+  const isOnline = useOfflineStore((s) => s.isOnline);
 
   const [filter, setFilter] = useState<SearchContentFilter>(
     VALID_FILTERS.includes(urlFilter as SearchContentFilter)
@@ -107,6 +109,7 @@ export default function SearchPageClient({
 
   const fetchYoutube = useCallback(
     async (q: string, pageToken?: string, append = false) => {
+      if (!navigator.onLine) return;
       const params = new URLSearchParams({
         q,
         filter,
@@ -163,7 +166,9 @@ export default function SearchPageClient({
 
         if (cancelled) return;
         setLocalResults(local);
-        await fetchYoutube(q);
+        if (isOnline) {
+          await fetchYoutube(q);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "No se pudo completar la búsqueda");
@@ -177,7 +182,7 @@ export default function SearchPageClient({
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, filter, fetchYoutube]);
+  }, [debouncedQuery, filter, fetchYoutube, isOnline]);
 
   const loadMore = useCallback(async () => {
     const q = debouncedQuery.trim();
@@ -244,6 +249,12 @@ export default function SearchPageClient({
       />
 
       <SearchFilterPills value={filter} onChange={updateFilter} />
+
+      {!isOnline && (
+        <div className="mb-4 rounded-lg border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent">
+          Modo offline activo — la búsqueda en YouTube está deshabilitada. Reproduce tu música descargada desde Tu biblioteca.
+        </div>
+      )}
 
       {loading && youtubeItems.length === 0 && (
         <div className="flex items-center gap-3 py-8">

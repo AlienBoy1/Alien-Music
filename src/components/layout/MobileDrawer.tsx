@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { Session } from "next-auth";
 import {
   ChevronDown,
+  Download,
   Home,
   Library,
   ListMusic,
@@ -33,6 +34,8 @@ const navItems = [
   { href: "/playlists", label: "Playlists", icon: ListMusic },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];
+
+const downloadsNav = { href: "/your-library#downloads", label: "Descargas", icon: Download };
 
 interface MobileDrawerProps {
   open: boolean;
@@ -82,17 +85,47 @@ export function MobileDrawer({
               aria-modal="true"
               aria-label="Menú de navegación"
             >
-              <div className="flex items-center justify-between border-b border-border px-4 py-4">
-                <div className="flex items-center gap-2">
-                  <AlienLogo size={28} animated />
-                  <span className="font-display text-base font-bold text-alien-gradient">
-                    Alien Music
-                  </span>
-                </div>
+              <div className="relative border-b border-border px-4 py-4">
+                {session ? (
+                  <Link
+                    href={`/user/${session.user?.id}`}
+                    onClick={onClose}
+                    className="glass-alien flex items-center gap-3 rounded-xl p-3 transition-colors hover:border-accent/40"
+                  >
+                    {session.user?.image ? (
+                      <Image
+                        src={session.user.image}
+                        alt=""
+                        width={48}
+                        height={48}
+                        className="rounded-full ring-2 ring-accent/40"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-accent to-alien-cyan text-sm font-bold text-black">
+                        {(session.user?.name?.[0] ?? "U").toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-display text-sm font-semibold text-alien-gradient">
+                        {session.user?.name ?? "Usuario"}
+                      </p>
+                      <p className="text-xs text-text-muted">Ver perfil · Ajustes completos</p>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlienLogo size={28} animated />
+                      <span className="font-display text-base font-bold text-alien-gradient">
+                        Alien Music
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-full p-2 text-text-muted hover:bg-surface-highlight hover:text-white"
+                  className="absolute right-4 top-4 rounded-full p-2 text-text-muted hover:bg-surface-highlight hover:text-white"
                   aria-label="Cerrar"
                 >
                   <X size={20} />
@@ -121,6 +154,15 @@ export function MobileDrawer({
                     </button>
                   );
                 })}
+
+                <button
+                  type="button"
+                  onClick={() => handleNav(downloadsNav.href)}
+                  className="mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-text-muted transition-colors hover:bg-surface-highlight hover:text-accent"
+                >
+                  <Download size={20} />
+                  <span className="text-sm font-semibold">{downloadsNav.label}</span>
+                </button>
 
                 <div className="my-3 border-t border-border pt-3">
                   <InstallAppButton className="w-full" />

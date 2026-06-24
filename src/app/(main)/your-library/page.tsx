@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ContentHeader } from "@/components/content/ContentHeader";
 import { SongRow } from "@/components/content/SongRow";
+import { DownloadsLibrary } from "@/components/offline/DownloadsLibrary";
 import { getLikedSongs } from "@/lib/db/songs";
 import { getUserPlaylists } from "@/lib/db/playlists";
 import { auth } from "@/auth";
@@ -22,6 +23,8 @@ export default async function YourLibraryPage() {
         subtitle={`${likedSongs.length} favoritos · ${playlists.length} playlists`}
         showFeedback={false}
       />
+
+      <DownloadsLibrary />
 
       {playlists.length > 0 && (
         <section className="mb-10">

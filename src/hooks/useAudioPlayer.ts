@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { recordRecentlyPlayed } from "@/app/actions/recentlyPlayed";
-import { useMediaSession } from "@/hooks/useMediaSession";
 import { usePlayerKeyboard } from "@/hooks/usePlayerKeyboard";
 import { updateMediaSessionPosition } from "@/lib/media/mediaSession";
 
@@ -13,7 +12,6 @@ const PLAYED_THRESHOLD = 0.3;
  * Hook central del reproductor: audio DOM, atajos, historial y Media Session.
  */
 export function useAudioPlayer(audioRef: React.RefObject<HTMLAudioElement | null>) {
-  useMediaSession();
   usePlayerKeyboard();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);

@@ -108,8 +108,41 @@ export function TopBar({ session, playlists = [] }: TopBarProps) {
           </div>
         </form>
 
-        {/* Móvil: accesos rápidos Mensajes + Ajustes */}
+        {/* Móvil: avatar + accesos rápidos */}
         <div className="flex shrink-0 items-center gap-1 md:hidden">
+          {session ? (
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="flex h-9 max-w-[120px] items-center gap-1.5 rounded-full border border-border bg-surface-highlight/80 py-0.5 pl-0.5 pr-2 transition-colors hover:border-accent/30"
+              aria-label="Abrir menú y perfil"
+            >
+              {session.user?.image ? (
+                <Image
+                  src={session.user.image}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 rounded-full ring-2 ring-accent/30"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent to-alien-cyan text-xs font-bold text-black">
+                  {(session.user?.name?.[0] ?? "U").toUpperCase()}
+                </div>
+              )}
+              <span className="truncate text-[11px] font-medium">
+                {session.user?.name?.split(" ")[0] ?? "Perfil"}
+              </span>
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-accent/30 text-accent"
+              aria-label="Iniciar sesión"
+            >
+              <LogIn size={18} />
+            </Link>
+          )}
           <Link
             href="/messages"
             className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
