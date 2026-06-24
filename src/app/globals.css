@@ -26,6 +26,12 @@
   --mobile-nav-height: 56px;
 }
 
+@media (max-width: 767px) {
+  :root {
+    --player-height: 88px;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

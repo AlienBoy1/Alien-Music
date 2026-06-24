@@ -32,11 +32,11 @@ export const CommunityTrackGrid = memo(function CommunityTrackGrid({
   if (songs.length === 0) return null;
 
   return (
-    <section className="content-optimize mb-8">
+    <section className="content-optimize mb-8 max-w-full overflow-hidden">
       <h2 className="font-display mb-4 inline-block text-xl font-bold tracking-wide text-alien-gradient beam-underline">
         {title}
       </h2>
-      <div className="stagger-children flex gap-4 overflow-x-auto pb-2">
+      <div className="stagger-children flex max-w-full gap-4 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]">
         {songs.map((song, i) => {
           const isCurrent = currentTrackId === song.id && isPlaying;
           return (
@@ -44,7 +44,7 @@ export const CommunityTrackGrid = memo(function CommunityTrackGrid({
               key={song.id}
               type="button"
               onClick={() => handlePlay(i)}
-              className="group w-40 shrink-0 text-left"
+              className="group w-36 max-w-[40vw] shrink-0 text-left sm:w-40"
             >
               <div
                 className={`relative mb-2 aspect-square overflow-hidden rounded-lg border bg-surface-highlight transition-transform duration-200 group-hover:scale-105 ${

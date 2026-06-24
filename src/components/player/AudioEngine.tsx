@@ -6,6 +6,7 @@ import { Maximize2, Minimize2, X } from "lucide-react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 import { useBackgroundPlayback } from "@/hooks/useBackgroundPlayback";
+import { useSilentAudioKeepalive } from "@/hooks/useSilentAudioKeepalive";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { useSettingsStore } from "@/lib/stores/settingsStore";
 import { isMobileNetwork } from "@/lib/settings/storage";
@@ -13,7 +14,7 @@ import { youtubeQualityConfig } from "@/lib/youtube/quality";
 
 const ReactPlayerLazy = dynamic(() => import("react-player"), { ssr: false });
 
-/** Estilo mínimo 1×1 para mantener el iframe activo en segundo plano (anti-suspensión iOS/Android) */
+/** Estilo mínimo 1×1 para mantener el iframe activo en segundo plano */
 const HIDDEN_PLAYER_STYLE: React.CSSProperties = {
   position: "fixed",
   bottom: 0,
@@ -25,15 +26,10 @@ const HIDDEN_PLAYER_STYLE: React.CSSProperties = {
   overflow: "hidden",
 };
 
-/**
- * Motor multimedia híbrido:
- * - `<audio>` nativo para pistas legacy (MP3)
- * - react-player (YouTube) para el catálogo comunitario
- * - Panel PiP cuando type === 'video'
- */
 export function AudioEngine() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const youtubeRef = useRef<HTMLVideoElement | null>(null);
+  const keepaliveRef = useSilentAudioKeepalive();
 
   useAudioPlayer(audioRef);
   const { forceBackgroundAudioOnly, isSlowNetwork } =
@@ -60,7 +56,6 @@ export function AudioEngine() {
     isMobileNetwork() &&
     currentTrack?.type === "video";
 
-  /** Segundo plano / pantalla bloqueada: solo audio, iframe mínimo activo */
   const backgroundAudioOnly = forceBackgroundAudioOnly;
 
   const isVideoMode =
@@ -93,6 +88,16 @@ export function AudioEngine() {
         ref={audioRef}
         preload={isSlowNetwork ? "auto" : "metadata"}
         className="hidden"
+        playsInline
+      />
+
+      {/* Hilo de audio nativo silencioso — mantiene reproducción YouTube en segundo plano */}
+      <audio
+        ref={keepaliveRef}
+        className="hidden"
+        playsInline
+        aria-hidden
+        tabIndex={-1}
       />
 
       {youtube.youtubeSrc && (
@@ -130,6 +135,7 @@ export function AudioEngine() {
             muted={youtube.muted}
             loop={youtube.loop}
             playsInline
+            controls={false}
             width={isVideoMode ? "100%" : 1}
             height={isVideoMode ? "100%" : 1}
             style={

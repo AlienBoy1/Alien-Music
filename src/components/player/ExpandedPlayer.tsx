@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import Image from "next/image";
 import {
   Loader2,
+  ListMusic,
+  Mic2,
   Minimize2,
   Pause,
   Play,
@@ -15,7 +17,8 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { usePlayerStore } from "@/lib/stores/playerStore";
+import Link from "next/link";
+import { usePlayerStore, type VideoQuality } from "@/lib/stores/playerStore";
 import { useTrackLyrics } from "@/hooks/useTrackLyrics";
 import { formatTime } from "@/lib/utils/format";
 import { AudioVisualizer } from "@/components/ui/AudioVisualizer";
@@ -41,6 +44,27 @@ export function ExpandedPlayer() {
   const seek = usePlayerStore((s) => s.seek);
   const setVolume = usePlayerStore((s) => s.setVolume);
   const toggleMute = usePlayerStore((s) => s.toggleMute);
+  const toggleLyricsPanel = usePlayerStore((s) => s.toggleLyricsPanel);
+  const isLyricsOpen = usePlayerStore((s) => s.isLyricsOpen);
+  const videoQuality = usePlayerStore((s) => s.videoQuality);
+  const setVideoQuality = usePlayerStore((s) => s.setVideoQuality);
+  const autoplayEnabled = usePlayerStore((s) => s.autoplayEnabled);
+  const setAutoplayEnabled = usePlayerStore((s) => s.setAutoplayEnabled);
+
+  const cycleQuality = () => {
+    const order: VideoQuality[] = ["low", "normal", "high", "extreme"];
+    const idx = order.indexOf(videoQuality);
+    setVideoQuality(order[(idx + 1) % order.length]);
+  };
+
+  const qualityLabel =
+    videoQuality === "low"
+      ? "Baja"
+      : videoQuality === "high"
+        ? "Alta"
+        : videoQuality === "extreme"
+          ? "Extrema"
+          : "Normal";
 
   const isVideo = currentTrack?.type === "video";
   const { lyrics, loading: lyricsLoading, error: lyricsError } = useTrackLyrics(
@@ -172,11 +196,10 @@ export function ExpandedPlayer() {
         )}
       </div>
 
-      {/* Controles flotantes */}
       <footer className="relative z-10 border-t border-white/10 bg-black/50 px-4 py-4 backdrop-blur-xl md:px-8">
         <div className="mx-auto flex max-w-3xl flex-col gap-3">
           <div className="flex items-center gap-3">
-            <span className="w-10 text-right text-xs text-text-muted">
+            <span className="w-10 shrink-0 text-right text-xs text-text-muted">
               {formatTime(currentTime)}
             </span>
             <input
@@ -186,14 +209,16 @@ export function ExpandedPlayer() {
               step={0.1}
               value={currentTime}
               onChange={(e) => seek(Number(e.target.value))}
-              className="progress-range flex-1"
+              className="progress-range min-w-0 flex-1"
               style={{ "--progress": `${progressPercent}%` } as React.CSSProperties}
               aria-label="Progreso"
             />
-            <span className="w-10 text-xs text-text-muted">{formatTime(duration)}</span>
+            <span className="w-10 shrink-0 text-xs text-text-muted">
+              {formatTime(duration)}
+            </span>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-center gap-2 md:justify-between">
             <button
               type="button"
               onClick={toggleShuffle}
@@ -249,8 +274,48 @@ export function ExpandedPlayer() {
             >
               {repeatMode === "one" ? <Repeat1 size={18} /> : <Repeat size={18} />}
             </button>
+          </div>
 
-            <div className="hidden items-center gap-2 md:flex">
+          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/5 pt-3">
+            <button
+              type="button"
+              onClick={cycleQuality}
+              className="rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent/40 hover:text-accent"
+            >
+              Calidad: {qualityLabel}
+            </button>
+            <button
+              type="button"
+              onClick={toggleLyricsPanel}
+              className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                isLyricsOpen
+                  ? "border-accent/40 text-accent"
+                  : "border-white/10 text-text-muted hover:text-white"
+              }`}
+            >
+              <Mic2 size={14} />
+              Letras
+            </button>
+            <Link
+              href="/queue"
+              onClick={() => setExpandedMode(false)}
+              className="flex items-center gap-1 rounded-full border border-white/10 px-3 py-1 text-xs font-medium text-text-muted transition-colors hover:border-accent/40 hover:text-accent"
+            >
+              <ListMusic size={14} />
+              Cola
+            </Link>
+            <button
+              type="button"
+              onClick={() => setAutoplayEnabled(!autoplayEnabled)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                autoplayEnabled
+                  ? "border-accent/40 text-accent"
+                  : "border-white/10 text-text-muted"
+              }`}
+            >
+              Autoplay
+            </button>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={toggleMute}
@@ -266,7 +331,7 @@ export function ExpandedPlayer() {
                 step={0.01}
                 value={isMuted ? 0 : volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
-                className="volume-range w-24"
+                className="volume-range w-20 md:w-24"
                 style={{ "--volume": `${volumePercent}%` } as React.CSSProperties}
                 aria-label="Volumen"
               />

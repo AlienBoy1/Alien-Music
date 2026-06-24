@@ -145,11 +145,26 @@ export function PlayerBar() {
         </div>
       )}
 
-      <footer className={`fixed bottom-0 left-0 right-0 z-50 flex h-[var(--player-height)] items-center border-t border-border bg-surface-elevated/90 px-3 backdrop-blur-xl md:px-4 ${isExpandedMode ? "hidden" : ""}`}>
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
+      <footer className={`fixed bottom-0 left-0 right-0 z-50 flex min-h-[var(--player-height)] flex-col border-t border-border bg-surface-elevated/90 backdrop-blur-xl md:h-[var(--player-height)] md:flex-row md:items-center md:px-4 ${isExpandedMode ? "hidden" : ""}`}>
+        {/* Barra de progreso móvil */}
+        <div
+          className="h-0.5 w-full bg-surface-highlight md:hidden"
+          aria-hidden
+        >
+          <div
+            className="h-full bg-accent transition-[width] duration-150"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="relative hidden h-14 w-14 shrink-0 overflow-hidden rounded-lg md:block">
+        <div className="flex min-h-0 flex-1 items-center px-3 md:contents">
+        <button
+          type="button"
+          onClick={() => toggleExpandedMode()}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left md:pointer-events-none md:cursor-default"
+          aria-label="Abrir reproductor completo"
+        >
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg md:h-14 md:w-14">
             <Image
               src={currentTrack.coverUrl}
               alt={currentTrack.albumTitle}
@@ -161,26 +176,17 @@ export function PlayerBar() {
               <div className="pointer-events-none absolute inset-0 ring-1 ring-accent/40 ring-inset" />
             )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-accent alien-glow-text">
               {currentTrack.title}
             </p>
             <p className="truncate text-xs text-text-muted">{currentTrack.artistName}</p>
           </div>
+        </button>
           <LikeButton songId={currentTrack.id} className="hidden md:block" />
-          <button
-            type="button"
-            onClick={toggleExpandedMode}
-            className={`rounded-full p-1.5 md:hidden ${
-              isExpandedMode ? "text-accent" : "text-text-muted"
-            }`}
-            aria-label="Pantalla completa"
-          >
-            <Maximize2 size={18} />
-          </button>
         </div>
 
-        <div className="flex flex-[2] flex-col items-center gap-1 px-2">
+        <div className="hidden flex-[2] flex-col items-center gap-1 px-2 md:flex">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -246,7 +252,7 @@ export function PlayerBar() {
             </button>
           </div>
 
-          <div className="hidden w-full max-w-md items-center gap-2 md:flex">
+          <div className="flex w-full max-w-md items-center gap-2">
             <span className="w-10 text-right text-xs text-text-muted">
               {formatTime(currentTime)}
             </span>
@@ -264,6 +270,35 @@ export function PlayerBar() {
             <span className="w-10 text-xs text-text-muted">{formatTime(duration)}</span>
           </div>
         </div>
+
+        {/* Controles compactos móvil */}
+        <div className="flex shrink-0 items-center gap-3 px-3 pb-2 md:hidden">
+          <button
+            type="button"
+            onClick={togglePlay}
+            disabled={isLoading && !isPlaying}
+            className="alien-btn-play flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-80"
+            aria-label={isPlaying ? "Pausar" : "Reproducir"}
+          >
+            {isLoading && isPlaying ? (
+              <Loader2 size={16} className="animate-spin text-black" />
+            ) : isPlaying ? (
+              <Pause size={16} fill="currentColor" />
+            ) : (
+              <Play size={16} fill="currentColor" className="ml-0.5" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={next}
+            className="text-text-muted"
+            aria-label="Siguiente"
+          >
+            <SkipForward size={20} fill="currentColor" />
+          </button>
+        </div>
+
+        <div className="absolute inset-x-0 top-0 hidden h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent md:block" />
 
         <div className="hidden flex-1 items-center justify-end gap-3 md:flex">
           {isPlaying && <AudioVisualizer active className="mr-1" />}

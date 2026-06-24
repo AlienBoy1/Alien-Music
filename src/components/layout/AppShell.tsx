@@ -35,7 +35,7 @@ export function AppShell({ children, session, playlists }: AppShellProps) {
           <CosmicBackground />
           <Sidebar session={session} playlists={playlists} />
           <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-            <TopBar session={session} />
+            <TopBar session={session} playlists={playlists} />
             <main className="flex-1 overflow-y-auto bg-gradient-to-b from-surface-highlight/30 via-surface/50 to-surface pb-[calc(var(--player-height)+var(--mobile-nav-height))] md:pb-[var(--player-height)]">
               {children}
             </main>

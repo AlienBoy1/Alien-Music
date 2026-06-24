@@ -35,6 +35,7 @@ export function useBackgroundPlayback(
 ) {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const playbackSource = usePlayerStore((s) => s.playbackSource);
   const pageVisible = usePageVisibility();
   const resumeAttemptRef = useRef(0);
 
@@ -93,9 +94,8 @@ export function useBackgroundPlayback(
   return {
     pageVisible,
     isSlowNetwork,
-    /** Forzar modo solo-audio cuando video + segundo plano o pantalla bloqueada */
     forceBackgroundAudioOnly:
-      !pageVisible && currentTrack?.type === "video",
+      !pageVisible && playbackSource === "youtube",
   };
 }
 
