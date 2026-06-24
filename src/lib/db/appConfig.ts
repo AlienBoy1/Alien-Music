@@ -1,11 +1,13 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { tryCreateAdminClient } from "@/lib/supabase/admin";
 import { APP_VERSION } from "@/lib/app/version";
 
 const CONFIG_ROW_ID = "default";
 
 export async function getMinRequiredVersion(): Promise<string> {
   try {
-    const supabase = createAdminClient();
+    const supabase = tryCreateAdminClient();
+    if (!supabase) return APP_VERSION;
+
     const { data, error } = await supabase
       .from("app_config")
       .select("min_required_version")
