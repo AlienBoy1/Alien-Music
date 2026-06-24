@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { mapDbSong } from "@/lib/supabase/mappers";
 import type { Song } from "@/types/music";
 import { songToPlayerTrack } from "@/types/music";
 import { usePlayerStore } from "@/lib/stores/playerStore";
+import { COVER_SIZES } from "@/lib/images/coverSizes";
 
 interface RecentlyPlayedSectionProps {
   userId: string;
@@ -32,25 +35,8 @@ export function RecentlyPlayedSection({
     if (data) {
       const mapped = data
         .map((row) => {
-          const raw = row.songs as unknown as {
-            id: string;
-            title: string;
-            artist: string;
-            album_title: string | null;
-            duration: number;
-            audio_url: string;
-            cover_url: string;
-          } | null;
-          if (!raw) return null;
-          return {
-            id: raw.id,
-            title: raw.title,
-            artist: raw.artist,
-            albumTitle: raw.album_title,
-            duration: raw.duration,
-            audioUrl: raw.audio_url,
-            coverUrl: raw.cover_url,
-          } satisfies Song;
+          const raw = row.songs as unknown as Parameters<typeof mapDbSong>[0] | null;
+          return raw ? mapDbSong(raw) : null;
         })
         .filter((s): s is Song => s !== null);
       setSongs(mapped);
@@ -87,9 +73,19 @@ export function RecentlyPlayedSection({
   if (songs.length === 0) return null;
 
   return (
-    <section className="mb-8">
-      <h2 className="mb-4 text-xl font-bold">Escuchado recientemente</h2>
-      <div className="flex gap-4 overflow-x-auto pb-2">
+    <section className="content-optimize mb-8">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-xl font-bold tracking-wide text-alien-gradient beam-underline inline-block">
+          Escuchado recientemente
+        </h2>
+        <Link
+          href="/history"
+          className="text-sm font-medium text-accent transition-colors hover:underline"
+        >
+          Ver historial
+        </Link>
+      </div>
+      <div className="stagger-children flex gap-4 overflow-x-auto pb-2">
         {songs.map((song) => {
           const isCurrent = currentTrack?.id === song.id;
           return (
@@ -102,21 +98,21 @@ export function RecentlyPlayedSection({
               className="group w-36 shrink-0 text-left"
             >
               <div
-                className={`relative mb-2 aspect-square overflow-hidden rounded-md bg-surface-highlight ${
-                  isCurrent ? "ring-2 ring-accent" : ""
+                className={`relative mb-2 aspect-square overflow-hidden rounded-lg bg-surface-highlight transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_20px_rgba(0,255,159,0.12)] ${
+                  isCurrent ? "ring-2 ring-accent alien-glow" : "border border-border group-hover:border-accent/30"
                 }`}
               >
                 <Image
                   src={song.coverUrl}
                   alt={song.title}
                   fill
-                  sizes="144px"
+                  sizes={COVER_SIZES.card}
                   className="object-cover transition-transform group-hover:scale-105"
                 />
               </div>
               <p
-                className={`truncate text-sm ${
-                  isCurrent ? "font-medium text-accent" : ""
+                className={`truncate text-sm transition-colors ${
+                  isCurrent ? "font-medium text-accent alien-glow-text" : "group-hover:text-white"
                 }`}
               >
                 {song.title}

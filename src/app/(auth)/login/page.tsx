@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Github } from "lucide-react";
+import { AlienLogo } from "@/components/ui/AlienLogo";
+import { CosmicBackground } from "@/components/ui/CosmicBackground";
 import { Suspense } from "react";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,7 @@ function LoginForm() {
     setError("");
 
     const result = await signIn("credentials", {
-      email,
+      identifier,
       password,
       redirect: false,
     });
@@ -30,7 +32,7 @@ function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Email o contraseña incorrectos");
+      setError("Email, @username o contraseña incorrectos");
       return;
     }
 
@@ -41,10 +43,12 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md space-y-6">
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent text-3xl">
-          👽
+        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full alien-glow bg-surface-highlight">
+          <AlienLogo size={56} animated />
         </div>
-        <h1 className="text-2xl font-bold">Iniciar sesión</h1>
+        <h1 className="font-display text-2xl font-bold tracking-wide text-alien-gradient">
+          Iniciar sesión
+        </h1>
         <p className="mt-1 text-sm text-text-muted">
           Accede a tu biblioteca y playlists
         </p>
@@ -54,7 +58,7 @@ function LoginForm() {
         <button
           type="button"
           onClick={() => signIn("google", { callbackUrl })}
-          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border bg-surface-highlight py-2.5 text-sm font-medium transition-colors hover:bg-surface-hover"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border bg-surface-highlight/80 py-2.5 text-sm font-medium transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_16px_rgba(0,255,159,0.1)]"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -67,7 +71,7 @@ function LoginForm() {
         <button
           type="button"
           onClick={() => signIn("github", { callbackUrl })}
-          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border bg-surface-highlight py-2.5 text-sm font-medium transition-colors hover:bg-surface-hover"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border bg-surface-highlight/80 py-2.5 text-sm font-medium transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_16px_rgba(0,255,159,0.1)]"
         >
           <Github size={20} />
           GitHub
@@ -76,18 +80,19 @@ function LoginForm() {
 
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border" />
-        <span className="text-xs text-text-muted">o con email</span>
+        <span className="text-xs text-text-muted">o con email / @username</span>
         <div className="h-px flex-1 bg-border" />
       </div>
 
       <form onSubmit={handleCredentials} className="space-y-4">
         <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Email o @username"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           required
-          className="w-full rounded-lg bg-surface-highlight px-4 py-3 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          autoComplete="username"
+          className="w-full rounded-lg border border-border bg-surface-highlight/80 px-4 py-3 text-white placeholder:text-text-muted transition-all duration-200 focus:border-accent/40 focus:outline-none focus:shadow-[0_0_16px_rgba(0,255,159,0.1)]"
         />
         <input
           type="password"
@@ -95,13 +100,13 @@ function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full rounded-lg bg-surface-highlight px-4 py-3 text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full rounded-lg border border-border bg-surface-highlight/80 px-4 py-3 text-white placeholder:text-text-muted transition-all duration-200 focus:border-accent/40 focus:outline-none focus:shadow-[0_0_16px_rgba(0,255,159,0.1)]"
         />
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-full bg-accent py-3 font-semibold text-black hover:bg-accent-hover disabled:opacity-50"
+          className="alien-btn-primary w-full rounded-full py-3 font-semibold disabled:opacity-50"
         >
           {loading ? "Entrando..." : "Entrar"}
         </button>
@@ -119,10 +124,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black p-4">
-      <Suspense>
-        <LoginForm />
-      </Suspense>
+    <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+      <CosmicBackground />
+      <div className="relative z-10 animate-fade-in-up">
+        <Suspense>
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

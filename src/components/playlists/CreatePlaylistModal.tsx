@@ -38,10 +38,10 @@ export function CreatePlaylistModal({ open, onClose }: CreatePlaylistModalProps)
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-xl bg-surface-elevated p-6 shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in-up">
+      <div className="w-full max-w-md rounded-xl alien-border-glow bg-surface-elevated/95 p-6 shadow-2xl backdrop-blur-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Crear playlist</h2>
+          <h2 className="font-display text-lg font-bold tracking-wide text-alien-gradient">Crear playlist</h2>
           <button
             type="button"
             onClick={onClose}
@@ -61,7 +61,7 @@ export function CreatePlaylistModal({ open, onClose }: CreatePlaylistModalProps)
               id="playlist-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg bg-surface-highlight px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full rounded-lg border border-border bg-surface-highlight/80 px-4 py-2.5 text-white transition-all duration-200 focus:border-accent/40 focus:outline-none focus:shadow-[0_0_16px_rgba(0,255,159,0.1)]"
               autoFocus
             />
           </div>
@@ -71,7 +71,7 @@ export function CreatePlaylistModal({ open, onClose }: CreatePlaylistModalProps)
           <button
             type="submit"
             disabled={loading || !name.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-2.5 font-semibold text-black transition-colors hover:bg-accent-hover disabled:opacity-50"
+            className="alien-btn-primary flex w-full items-center justify-center gap-2 rounded-full py-2.5 font-semibold disabled:opacity-50"
           >
             <Plus size={18} />
             {loading ? "Creando..." : "Crear playlist"}

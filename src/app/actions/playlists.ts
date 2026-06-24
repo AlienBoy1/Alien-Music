@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  canContributeToPlaylist,
+  registerPlaylistContributor,
+} from "@/lib/db/users";
 
 export type ActionResult<T = void> = { error?: string; data?: T };
 
@@ -20,6 +24,7 @@ export async function createPlaylist(name?: string) {
       user_id: session.user.id,
       description: null,
       is_public: false,
+      is_collaborative: false,
     })
     .select("id")
     .single();
@@ -32,7 +37,12 @@ export async function createPlaylist(name?: string) {
 
 export async function updatePlaylist(
   playlistId: string,
-  updates: { name?: string; description?: string; isPublic?: boolean },
+  updates: {
+    name?: string;
+    description?: string;
+    isPublic?: boolean;
+    isCollaborative?: boolean;
+  },
 ) {
   const session = await auth();
   if (!session?.user?.id) return { error: "No autorizado" };
@@ -44,6 +54,9 @@ export async function updatePlaylist(
   if (updates.name !== undefined) payload.name = updates.name.trim();
   if (updates.description !== undefined) payload.description = updates.description;
   if (updates.isPublic !== undefined) payload.is_public = updates.isPublic;
+  if (updates.isCollaborative !== undefined) {
+    payload.is_collaborative = updates.isCollaborative;
+  }
 
   const { error } = await supabase
     .from("playlists")
@@ -82,13 +95,16 @@ export async function addSongToPlaylist(
   const session = await auth();
   if (!session?.user?.id) return { error: "No autorizado" };
 
+  const userId = session.user.id;
+  const allowed = await canContributeToPlaylist(playlistId, userId);
+  if (!allowed) return { error: "No puedes editar esta playlist" };
+
   const supabase = createAdminClient();
 
   const { data: playlist } = await supabase
     .from("playlists")
-    .select("id")
+    .select("user_id, is_collaborative")
     .eq("id", playlistId)
-    .eq("user_id", session.user.id)
     .single();
 
   if (!playlist) return { error: "Playlist no encontrada" };
@@ -109,6 +125,13 @@ export async function addSongToPlaylist(
 
   if (error) return { error: error.message };
 
+  if (
+    playlist.is_collaborative &&
+    playlist.user_id !== userId
+  ) {
+    await registerPlaylistContributor(playlistId, userId);
+  }
+
   revalidatePath(`/playlists/${playlistId}`);
   revalidatePath("/playlists");
   return { success: true };
@@ -122,6 +145,16 @@ export async function removeSongFromPlaylist(
   if (!session?.user?.id) return { error: "No autorizado" };
 
   const supabase = createAdminClient();
+  const { data: playlist } = await supabase
+    .from("playlists")
+    .select("user_id")
+    .eq("id", playlistId)
+    .single();
+
+  if (!playlist || playlist.user_id !== session.user.id) {
+    return { error: "Solo el creador puede quitar canciones" };
+  }
+
   const { error } = await supabase
     .from("playlist_songs")
     .delete()

@@ -28,21 +28,31 @@ const providers = [
   Credentials({
     name: "credentials",
     credentials: {
-      email: { label: "Email", type: "email" },
+      identifier: { label: "Email o @username", type: "text" },
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      const email = credentials?.email as string | undefined;
+      const identifier = (credentials?.identifier as string | undefined)?.trim();
       const password = credentials?.password as string | undefined;
 
-      if (!email || !password) return null;
+      if (!identifier || !password) return null;
 
       const supabase = createAdminClient();
-      const { data: user, error } = await supabase
+      const normalized = identifier.toLowerCase();
+      const isEmail = normalized.includes("@");
+
+      let query = supabase
         .from("users")
-        .select("id, name, email, image, password_hash")
-        .eq("email", email.toLowerCase())
-        .single();
+        .select("id, name, email, image, password_hash, username");
+
+      if (isEmail) {
+        query = query.eq("email", normalized);
+      } else {
+        const username = normalized.replace(/^@/, "");
+        query = query.ilike("username", username);
+      }
+
+      const { data: user, error } = await query.maybeSingle();
 
       if (error || !user?.password_hash) return null;
 

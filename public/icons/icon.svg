@@ -1,8 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="96" fill="#121212"/>
-  <circle cx="256" cy="220" r="120" fill="#1DB954"/>
-  <ellipse cx="200" cy="200" rx="28" ry="40" fill="#121212"/>
-  <ellipse cx="312" cy="200" rx="28" ry="40" fill="#121212"/>
-  <path d="M180 280 Q256 340 332 280" stroke="#121212" stroke-width="12" stroke-linecap="round" fill="none"/>
-  <text x="256" y="420" text-anchor="middle" fill="#1DB954" font-family="Arial,sans-serif" font-size="48" font-weight="bold">AM</text>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a12"/>
+      <stop offset="100%" stop-color="#12121f"/>
+    </linearGradient>
+    <linearGradient id="alien" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff9f"/>
+      <stop offset="50%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <circle cx="256" cy="220" r="110" fill="url(#alien)" filter="url(#glow)"/>
+  <ellipse cx="200" cy="205" rx="26" ry="38" fill="#0a0a12"/>
+  <ellipse cx="312" cy="205" rx="26" ry="38" fill="#0a0a12"/>
+  <ellipse cx="200" cy="205" rx="10" ry="16" fill="#00ff9f" opacity="0.9"/>
+  <ellipse cx="312" cy="205" rx="10" ry="16" fill="#00ff9f" opacity="0.9"/>
+  <path d="M185 275 Q256 320 327 275" stroke="#0a0a12" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <ellipse cx="256" cy="95" rx="8" ry="14" fill="url(#alien)" opacity="0.8"/>
+  <text x="256" y="420" text-anchor="middle" fill="url(#alien)" font-family="Arial,sans-serif" font-size="52" font-weight="bold" filter="url(#glow)">AM</text>
 </svg>

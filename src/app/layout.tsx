@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Orbitron } from "next/font/google";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { AppVersionProvider } from "@/components/providers/AppVersionProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,6 +13,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const orbitron = Orbitron({
+  variable: "--font-orbitron",
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -30,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#121212",
+  themeColor: "#0a0a12",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -42,11 +50,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" data-theme="alien-green" data-compact="false">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <AppVersionProvider>{children}</AppVersionProvider>
+        </AuthProvider>
       </body>
     </html>
   );

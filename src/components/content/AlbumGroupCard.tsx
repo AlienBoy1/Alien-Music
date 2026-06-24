@@ -36,8 +36,10 @@ export function AlbumGroupCard({ group }: AlbumGroupCardProps) {
         aria-label={`Reproducir ${group.albumTitle} de ${group.artist}`}
       >
         <div
-          className={`relative mb-3 aspect-square w-full overflow-hidden rounded-md bg-surface-highlight shadow-lg transition-transform group-hover:scale-[1.02] ${
-            isAlbumPlaying ? "ring-2 ring-accent" : ""
+          className={`relative mb-3 aspect-square w-full overflow-hidden rounded-lg bg-surface-highlight shadow-lg transition-all duration-300 group-hover:scale-[1.03] group-hover:shadow-[0_0_24px_rgba(0,255,159,0.15)] ${
+            isAlbumPlaying
+              ? "ring-2 ring-accent alien-glow"
+              : "border border-border group-hover:border-accent/30"
           }`}
         >
           <Image
@@ -45,17 +47,20 @@ export function AlbumGroupCard({ group }: AlbumGroupCardProps) {
             alt={`${group.artist} - ${group.albumTitle}`}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
-            className="object-cover"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent shadow-xl">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <div className="alien-btn-play flex h-12 w-12 items-center justify-center rounded-full">
               <span className="ml-1 text-black">▶</span>
             </div>
           </div>
+          {isAlbumPlaying && (
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-accent/15 to-transparent" />
+          )}
         </div>
         <p
-          className={`truncate text-xs ${
-            isAlbumPlaying ? "font-medium text-accent" : "text-text-muted"
+          className={`truncate text-xs transition-colors duration-200 ${
+            isAlbumPlaying ? "font-medium text-accent alien-glow-text" : "text-text-muted group-hover:text-white"
           }`}
         >
           {group.artist} - {group.albumTitle}
@@ -63,7 +68,7 @@ export function AlbumGroupCard({ group }: AlbumGroupCardProps) {
       </button>
 
       {firstSong && (
-        <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           <LikeButton songId={firstSong.id} />
         </div>
       )}

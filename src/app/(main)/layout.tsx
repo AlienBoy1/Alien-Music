@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { LikesProvider } from "@/components/providers/LikesProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { getLikedSongIds } from "@/lib/db/songs";
-import { getUserPlaylists } from "@/lib/db/playlists";
+import { getWritablePlaylists } from "@/lib/db/playlists";
 import type { Playlist } from "@/types/music";
 
 export default async function MainLayout({
@@ -20,7 +20,7 @@ export default async function MainLayout({
     try {
       [likedSongIds, playlists] = await Promise.all([
         getLikedSongIds(userId),
-        getUserPlaylists(userId),
+        getWritablePlaylists(userId),
       ]);
     } catch {
       // DB no configurada aún — la app sigue funcionando en modo degradado

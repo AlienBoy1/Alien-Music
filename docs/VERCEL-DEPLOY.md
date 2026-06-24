@@ -120,6 +120,7 @@ El service worker se genera en `npm run build` vía `@ducanh2912/next-pwa`. En p
 | "No hay canciones" | Ejecuta el seed SQL en Supabase |
 | Imágenes no cargan | Revisa `next.config.ts` → `remotePatterns` |
 | Auth redirect loop | `AUTH_URL` debe coincidir con el dominio de producción |
+| `/api/auth/session` 500, `MissingSecret` | Variables solo en **Development** — añádelas también a **Production** y **Preview**, luego redeploy |
 | Realtime no actualiza | Habilita `recently_played` en Replication |
 | Audio no reproduce | SoundHelix requiere HTTPS (Vercel lo provee) |
 

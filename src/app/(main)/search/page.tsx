@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { auth } from "@/auth";
-import { getUserPlaylists } from "@/lib/db/playlists";
+import { getWritablePlaylists } from "@/lib/db/playlists";
 import type { Playlist } from "@/types/music";
 import SearchPageClient from "./SearchPageClient";
 
@@ -10,7 +10,7 @@ export default async function SearchPage() {
 
   if (session?.user?.id) {
     try {
-      playlists = await getUserPlaylists(session.user.id);
+      playlists = await getWritablePlaylists(session.user.id);
     } catch {
       playlists = [];
     }
@@ -22,7 +22,10 @@ export default async function SearchPage() {
         <div className="p-8 text-text-muted">Cargando búsqueda...</div>
       }
     >
-      <SearchPageClient playlists={playlists} />
+      <SearchPageClient
+        playlists={playlists}
+        currentUserId={session?.user?.id}
+      />
     </Suspense>
   );
 }

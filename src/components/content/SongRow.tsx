@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef } from "react";
+import { memo, useRef, useCallback } from "react";
 import type { Song, Playlist } from "@/types/music";
 import { songToPlayerTrack } from "@/types/music";
 import {
@@ -10,7 +10,9 @@ import {
 } from "@/lib/stores/playerStore";
 import { formatTime } from "@/lib/utils/format";
 import { LikeButton } from "@/components/content/LikeButton";
+import { TrackActionsMenu } from "@/components/content/TrackActionsMenu";
 import { AddToPlaylistMenu } from "@/components/playlists/AddToPlaylistMenu";
+import { COVER_SIZES } from "@/lib/images/coverSizes";
 
 interface SongRowProps {
   song: Song;
@@ -21,7 +23,7 @@ interface SongRowProps {
   showPlayNext?: boolean;
 }
 
-export function SongRow({
+export const SongRow = memo(function SongRow({
   song,
   index,
   queue,
@@ -41,7 +43,7 @@ export function SongRow({
   const trackList = (queue ?? [song]).map(songToPlayerTrack);
   const track = songToPlayerTrack(song);
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
@@ -51,21 +53,21 @@ export function SongRow({
       clickTimerRef.current = null;
       playTrack(track, trackList);
     }, 250);
-  };
+  }, [playTrack, track, trackList]);
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = useCallback(() => {
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
     }
     const startIndex = index ?? trackList.findIndex((t) => t.id === song.id);
     playCollection(trackList, startIndex >= 0 ? startIndex : 0);
-  };
+  }, [index, playCollection, song.id, trackList]);
 
   return (
     <div
-      className={`group flex w-full items-center gap-4 rounded-md px-3 py-2 transition-colors hover:bg-surface-highlight ${
-        isCurrent ? "bg-surface-highlight/50" : ""
+      className={`song-row-compact-target group flex w-full items-center gap-4 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-surface-highlight hover:shadow-[inset_0_0_16px_rgba(0,255,159,0.04)] ${
+        isCurrent ? "bg-surface-highlight/50 border-l-2 border-accent shadow-[inset_0_0_20px_rgba(0,255,159,0.06)]" : ""
       }`}
     >
       <button
@@ -83,14 +85,14 @@ export function SongRow({
             {isPlaying ? "♪" : index + 1}
           </span>
         )}
-        <span className="hidden w-6 text-center text-accent group-hover:block">▶</span>
+        <span className="hidden w-6 text-center text-accent drop-shadow-[0_0_6px_rgba(0,255,159,0.5)] group-hover:block">▶</span>
 
         <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded">
           <Image
             src={song.coverUrl}
             alt={song.albumTitle ?? song.title}
             fill
-            sizes="40px"
+            sizes={COVER_SIZES.thumb}
             className="object-cover"
           />
         </div>
@@ -121,6 +123,7 @@ export function SongRow({
       )}
 
       <LikeButton songId={song.id} />
+      <TrackActionsMenu track={track} isAuthenticated={isAuthenticated} />
       <AddToPlaylistMenu
         songId={song.id}
         playlists={playlists}
@@ -128,4 +131,4 @@ export function SongRow({
       />
     </div>
   );
-}
+});

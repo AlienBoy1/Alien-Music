@@ -10,21 +10,23 @@ export function ContentHeader({
   showFeedback = true,
 }: ContentHeaderProps) {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 animate-fade-in-up">
       <div>
-        <h1 className="text-2xl font-bold md:text-3xl">{title}</h1>
+        <h1 className="font-display beam-underline text-2xl font-bold tracking-wide md:text-3xl text-alien-gradient">
+          {title}
+        </h1>
         {subtitle && (
-          <p className="mt-1 text-sm text-text-muted">{subtitle}</p>
+          <p className="mt-2 text-sm text-text-muted">{subtitle}</p>
         )}
       </div>
       {showFeedback && (
         <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-text-muted sm:inline">
+          <span className="hidden font-display text-xs tracking-widest text-alien-cyan/60 uppercase sm:inline">
             Beta Feed
           </span>
           <button
             type="button"
-            className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-black transition-colors hover:bg-accent-hover"
+            className="alien-btn-primary rounded-full px-5 py-2 text-sm"
           >
             Give Feedback
           </button>

@@ -3,10 +3,15 @@
   "short_name": "Alien Music",
   "description": "Aplicación web progresiva de streaming de música inspirada en Spotify",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#121212",
-  "orientation": "portrait-primary",
+  "display_override": ["standalone", "fullscreen"],
+  "background_color": "#0a0a12",
+  "theme_color": "#0a0a12",
+  "orientation": "portrait",
+  "version": "1.1.0",
+  "categories": ["music", "entertainment"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/icon.svg",
@@ -19,6 +24,18 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Buscar",
+      "url": "/search",
+      "description": "Buscar música en YouTube"
+    },
+    {
+      "name": "Cola",
+      "url": "/queue",
+      "description": "Ver cola de reproducción"
     }
   ]
 }

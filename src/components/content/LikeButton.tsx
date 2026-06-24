@@ -41,8 +41,8 @@ export function LikeButton({ songId, size = 16, className = "" }: LikeButtonProp
       type="button"
       onClick={handleClick}
       disabled={isPending}
-      className={`transition-colors hover:text-accent disabled:opacity-50 ${
-        optimisticLiked ? "text-accent" : "text-text-muted"
+      className={`transition-all duration-200 hover:text-accent hover:drop-shadow-[0_0_6px_rgba(0,255,159,0.5)] disabled:opacity-50 ${
+        optimisticLiked ? "text-accent drop-shadow-[0_0_8px_rgba(0,255,159,0.4)]" : "text-text-muted"
       } ${className}`}
       aria-label={optimisticLiked ? "Quitar de favoritos" : "Añadir a favoritos"}
     >

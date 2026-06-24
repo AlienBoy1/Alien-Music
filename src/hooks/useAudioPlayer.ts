@@ -1,44 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { recordRecentlyPlayed } from "@/app/actions/recentlyPlayed";
 import { useMediaSession } from "@/hooks/useMediaSession";
+import { usePlayerKeyboard } from "@/hooks/usePlayerKeyboard";
+import { updateMediaSessionPosition } from "@/lib/media/mediaSession";
 
-const SEEK_STEP = 5;
 const PLAYED_THRESHOLD = 0.3;
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    target.isContentEditable
-  );
-}
 
 /**
  * Hook central del reproductor: audio DOM, atajos, historial y Media Session.
  */
 export function useAudioPlayer(audioRef: React.RefObject<HTMLAudioElement | null>) {
   useMediaSession();
+  usePlayerKeyboard();
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const volume = usePlayerStore((s) => s.volume);
   const isMuted = usePlayerStore((s) => s.isMuted);
   const currentTime = usePlayerStore((s) => s.currentTime);
-  const duration = usePlayerStore((s) => s.duration);
 
   const setCurrentTime = usePlayerStore((s) => s.setCurrentTime);
   const setDuration = usePlayerStore((s) => s.setDuration);
   const setLoading = usePlayerStore((s) => s.setLoading);
   const next = usePlayerStore((s) => s.next);
-  const togglePlay = usePlayerStore((s) => s.togglePlay);
-  const toggleMute = usePlayerStore((s) => s.toggleMute);
-  const seekRelative = usePlayerStore((s) => s.seekRelative);
   const hydrateVolume = usePlayerStore((s) => s.hydrateVolume);
 
   const recordedTrackRef = useRef<string | null>(null);
@@ -48,25 +35,36 @@ export function useAudioPlayer(audioRef: React.RefObject<HTMLAudioElement | null
     hydrateVolume();
   }, [hydrateVolume]);
 
-  // Cambio de pista → cargar fuente
+  // Cambio de pista → cargar fuente (solo reproducción nativa / legacy MP3)
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentTrack) return;
+    const track = usePlayerStore.getState().currentTrack;
+    if (!audio || !track) return;
+
+    const playbackSource = usePlayerStore.getState().playbackSource;
+    if (playbackSource === "youtube" || !track.audioUrl) return;
 
     setLoading(true);
     recordedTrackRef.current = null;
 
-    const fullUrl = currentTrack.audioUrl;
+    const fullUrl = track.audioUrl;
     if (!audio.src.endsWith(fullUrl.split("/").pop() ?? "")) {
       audio.src = fullUrl;
       audio.load();
+      const saved = usePlayerStore.getState().currentTime;
+      if (saved > 1) {
+        audio.currentTime = saved;
+      }
     }
-  }, [currentTrack, audioRef, setLoading]);
+  }, [currentTrack?.id, audioRef, setLoading]);
 
-  // Play / Pause
+  // Play / Pause (solo elemento <audio> nativo)
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentTrack) return;
+
+    const playbackSource = usePlayerStore.getState().playbackSource;
+    if (playbackSource === "youtube" || !currentTrack.audioUrl) return;
 
     if (isPlaying) {
       setLoading(true);
@@ -110,27 +108,18 @@ export function useAudioPlayer(audioRef: React.RefObject<HTMLAudioElement | null
       const dur = audio.duration || 0;
       setCurrentTime(time);
 
+      const track = usePlayerStore.getState().currentTrack;
       if (
-        currentTrack &&
+        track &&
         dur > 0 &&
         time / dur >= PLAYED_THRESHOLD &&
-        recordedTrackRef.current !== currentTrack.id
+        recordedTrackRef.current !== track.id
       ) {
-        recordedTrackRef.current = currentTrack.id;
-        void recordRecentlyPlayed(currentTrack.id);
+        recordedTrackRef.current = track.id;
+        void recordRecentlyPlayed(track.id);
       }
 
-      if ("mediaSession" in navigator && navigator.mediaSession.setPositionState) {
-        try {
-          navigator.mediaSession.setPositionState({
-            duration: dur,
-            playbackRate: audio.playbackRate,
-            position: time,
-          });
-        } catch {
-          // duration NaN en algunos navegadores
-        }
-      }
+      updateMediaSessionPosition(time, dur, audio.playbackRate);
     };
 
     const onEnded = () => next();
@@ -150,47 +139,6 @@ export function useAudioPlayer(audioRef: React.RefObject<HTMLAudioElement | null
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("ended", onEnded);
     };
-  }, [
-    audioRef,
-    currentTrack,
-    setCurrentTime,
-    setDuration,
-    setLoading,
-    next,
-  ]);
+  }, [audioRef, setCurrentTime, setDuration, setLoading, next]);
 
-  // Atajos de teclado globales
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return;
-      if (!currentTrack) return;
-
-      switch (e.code) {
-        case "Space":
-          e.preventDefault();
-          togglePlay();
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          seekRelative(SEEK_STEP);
-          break;
-        case "ArrowLeft":
-          e.preventDefault();
-          seekRelative(-SEEK_STEP);
-          break;
-        case "KeyM":
-          e.preventDefault();
-          toggleMute();
-          break;
-        default:
-          break;
-      }
-    },
-    [currentTrack, togglePlay, seekRelative, toggleMute],
-  );
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
 }
