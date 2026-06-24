@@ -23,11 +23,13 @@ import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import type { CommunityPlaylistHit } from "@/lib/db/community";
 import type {
   SearchContentFilter,
+  YouTubeAlbumItem,
   YouTubePlaylistItem,
   YouTubeSearchItem,
 } from "@/lib/youtube/types";
 import type { Playlist, PlayerTrack, SearchResult } from "@/types/music";
 import { songToPlayerTrack, youtubeItemToPlayerTrack } from "@/types/music";
+import { albumByChannelMap } from "@/lib/search/albumMatch";
 
 interface SearchPageClientProps {
   playlists?: Playlist[];
@@ -37,9 +39,15 @@ interface SearchPageClientProps {
 interface YouTubeApiResponse {
   items: YouTubeSearchItem[];
   youtubePlaylists: YouTubePlaylistItem[];
+  youtubeAlbums?: YouTubeAlbumItem[];
   communityPlaylists: CommunityPlaylistHit[];
   nextPageToken?: string;
   error?: string;
+}
+
+interface FetchYoutubeResult {
+  addedCount: number;
+  nextToken?: string;
 }
 
 function mergeUnique<T>(prev: T[], incoming: T[], getId: (item: T) => string): T[] {
@@ -83,6 +91,7 @@ export default function SearchPageClient({
   );
   const [localResults, setLocalResults] = useState<SearchResult | null>(null);
   const [youtubeItems, setYoutubeItems] = useState<YouTubeSearchItem[]>([]);
+  const [youtubeAlbums, setYoutubeAlbums] = useState<YouTubeAlbumItem[]>([]);
   const [youtubePlaylists, setYoutubePlaylists] = useState<YouTubePlaylistItem[]>([]);
   const [communityPlaylists, setCommunityPlaylists] = useState<CommunityPlaylistHit[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>();
@@ -111,8 +120,13 @@ export default function SearchPageClient({
   };
 
   const fetchYoutube = useCallback(
-    async (q: string, pageToken?: string, append = false) => {
-      if (!navigator.onLine) return;
+    async (
+      q: string,
+      pageToken?: string,
+      append = false,
+    ): Promise<FetchYoutubeResult> => {
+      if (!navigator.onLine) return { addedCount: 0 };
+
       const params = new URLSearchParams({
         q,
         filter,
@@ -127,21 +141,31 @@ export default function SearchPageClient({
       }
 
       const data = (await res.json()) as YouTubeApiResponse;
+      let addedCount = 0;
 
-      setYoutubeItems((prev) =>
-        append
+      setYoutubeItems((prev) => {
+        const merged = append
           ? mergeUnique(prev, data.items ?? [], (i) => i.youtubeId)
-          : data.items ?? [],
-      );
+          : (data.items ?? []);
+        addedCount = merged.length - (append ? prev.length : 0);
+        return merged;
+      });
+
       setYoutubePlaylists((prev) =>
         append
           ? mergeUnique(prev, data.youtubePlaylists ?? [], (p) => p.playlistId)
-          : data.youtubePlaylists ?? [],
+          : (data.youtubePlaylists ?? []),
       );
+
       if (!append) {
         setCommunityPlaylists(data.communityPlaylists ?? []);
+        setYoutubeAlbums(data.youtubeAlbums ?? []);
       }
-      setNextPageToken(data.nextPageToken);
+
+      const nextToken = data.nextPageToken;
+      setNextPageToken(nextToken);
+
+      return { addedCount, nextToken };
     },
     [filter],
   );
@@ -151,6 +175,7 @@ export default function SearchPageClient({
     if (!q) {
       setLocalResults(null);
       setYoutubeItems([]);
+      setYoutubeAlbums([]);
       setYoutubePlaylists([]);
       setCommunityPlaylists([]);
       setNextPageToken(undefined);
@@ -195,29 +220,46 @@ export default function SearchPageClient({
 
     setLoadingMore(true);
     try {
-      await fetchYoutube(q, nextPageToken, true);
+      const token = nextPageToken;
+      const { addedCount, nextToken } = await fetchYoutube(q, token, true);
+
+      if (!nextToken || addedCount === 0) {
+        setNextPageToken(undefined);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al cargar más");
+      setNextPageToken(undefined);
     } finally {
       setLoadingMore(false);
     }
   }, [debouncedQuery, nextPageToken, loadingMore, fetchYoutube]);
 
+  const hasMoreResults = Boolean(nextPageToken);
+
   const sentinelRef = useInfiniteScroll({
     onLoadMore: () => void loadMore(),
-    hasMore: Boolean(nextPageToken),
-    loading: loadingMore || loading,
+    hasMore: hasMoreResults,
+    loading: loadingMore,
   });
+
+  const channelAlbumMap = useMemo(
+    () => albumByChannelMap(youtubeAlbums),
+    [youtubeAlbums],
+  );
 
   const youtubeTracks: PlayerTrack[] = useMemo(
     () =>
-      youtubeItems.map((item) =>
-        youtubeItemToPlayerTrack(
+      youtubeItems.map((item) => {
+        const album = channelAlbumMap.get(item.channelTitle.toLowerCase());
+        return youtubeItemToPlayerTrack(
           item,
           item.kind === "video" ? "video" : "audio",
-        ),
-      ),
-    [youtubeItems],
+          album
+            ? { title: album.title, playlistId: album.playlistId }
+            : undefined,
+        );
+      }),
+    [youtubeItems, channelAlbumMap],
   );
 
   const topResult = useMemo(
@@ -249,7 +291,7 @@ export default function SearchPageClient({
   const albumCards: CarouselCard[] = useMemo(() => {
     const localAlbums =
       localResults?.albums.map((a) => ({
-        id: `album:${a.title}:${a.artist}`,
+        id: `album:local:${a.title}:${a.artist}`,
         title: a.title,
         subtitle: a.artist,
         imageUrl: a.coverUrl,
@@ -263,8 +305,22 @@ export default function SearchPageClient({
         },
       })) ?? [];
 
-    return localAlbums;
-  }, [localResults, playCollection]);
+    const ytAlbums: CarouselCard[] = youtubeAlbums.map((a) => ({
+      id: `album:yt:${a.playlistId}`,
+      title: a.title,
+      subtitle: a.artist,
+      imageUrl: a.thumbnailUrl,
+      href: `/album/yt/${a.playlistId}`,
+    }));
+
+    const seen = new Set(localAlbums.map((a) => a.title.toLowerCase()));
+    const merged = [
+      ...localAlbums,
+      ...ytAlbums.filter((a) => !seen.has(a.title.toLowerCase())),
+    ];
+
+    return merged.slice(0, 12);
+  }, [localResults, youtubeAlbums, playCollection]);
 
   const artistCards: CarouselCard[] = useMemo(() => {
     const fromLocal =
@@ -409,7 +465,7 @@ export default function SearchPageClient({
             <section className="mb-6">
               <h2 className="mb-2 px-1 text-xl font-bold text-white">Canciones</h2>
               <div className="flex flex-col">
-                {songItems.slice(0, 15).map((item) => {
+                {songItems.map((item) => {
                   const trackIndex = youtubeItems.findIndex(
                     (x) => x.youtubeId === item.youtubeId,
                   );
@@ -423,6 +479,7 @@ export default function SearchPageClient({
                       index={trackIndex}
                       allTracks={youtubeTracks}
                       playlists={playlists}
+                      youtubeAlbums={youtubeAlbums}
                       isAuthenticated={!!session}
                       currentUserId={currentUserId}
                     />
@@ -458,13 +515,19 @@ export default function SearchPageClient({
             </p>
           )}
 
-          {nextPageToken && (
-            <div ref={sentinelRef} className="flex justify-center py-6">
-              {loadingMore && (
+          {hasMoreResults && (
+            <div
+              ref={sentinelRef}
+              className="flex min-h-[72px] items-center justify-center py-6"
+              aria-live="polite"
+            >
+              {loadingMore ? (
                 <div className="flex items-center gap-2 text-sm text-text-muted">
-                  <div className="alien-loader h-6 w-6" />
-                  Cargando más...
+                  <div className="alien-loader h-6 w-6 shrink-0" />
+                  <span>Cargando más...</span>
                 </div>
+              ) : (
+                <span className="sr-only">Desplázate para cargar más resultados</span>
               )}
             </div>
           )}

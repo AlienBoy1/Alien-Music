@@ -2,10 +2,13 @@
 
 import { useEffect } from "react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
+import { useLikesContext } from "@/components/providers/LikesProvider";
 import {
   clearMediaSessionActionHandlers,
   registerMediaSessionActionHandlers,
   setMediaSessionPlaybackState,
+  syncAllMediaSessionControls,
+  syncMediaSessionLike,
   syncMediaSessionModes,
   syncMediaSessionQueueNavigation,
   updateMediaSessionMetadata,
@@ -23,8 +26,11 @@ export function useMediaSession() {
   const repeatMode = usePlayerStore((s) => s.repeatMode);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
-  const queue = usePlayerStore((s) => s.queue);
-  const shuffledQueue = usePlayerStore((s) => s.shuffledQueue);
+
+  const { likedSongIds, isAuthenticated } = useLikesContext();
+
+  const isLiked =
+    Boolean(currentTrack) && likedSongIds.has(currentTrack!.id);
 
   useEffect(() => {
     registerMediaSessionActionHandlers();
@@ -44,18 +50,29 @@ export function useMediaSession() {
   }, [isShuffle, repeatMode]);
 
   useEffect(() => {
-    syncMediaSessionQueueNavigation(
-      currentTrack,
-      queue,
-      shuffledQueue,
-      isShuffle,
-      repeatMode,
-    );
-  }, [currentTrack, queue, shuffledQueue, isShuffle, repeatMode]);
+    syncMediaSessionQueueNavigation(currentTrack);
+  }, [currentTrack]);
+
+  useEffect(() => {
+    syncMediaSessionLike({
+      track: currentTrack,
+      isLiked,
+      isAuthenticated,
+    });
+  }, [currentTrack, isLiked, isAuthenticated]);
 
   useEffect(() => {
     if (duration > 0) {
       updateMediaSessionPosition(currentTime, duration);
     }
   }, [currentTime, duration]);
+
+  useEffect(() => {
+    if (!currentTrack) return;
+    syncAllMediaSessionControls({
+      track: currentTrack,
+      isLiked,
+      isAuthenticated,
+    });
+  }, [currentTrack, isLiked, isAuthenticated, isShuffle, repeatMode, isPlaying]);
 }

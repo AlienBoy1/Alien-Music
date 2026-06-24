@@ -1,6 +1,8 @@
 import type { PlayerTrack } from "@/types/music";
 import {
+  registerMediaSessionActionHandlers,
   setMediaSessionPlaybackState,
+  syncAllMediaSessionControls,
   updateMediaSessionMetadata,
   updateMediaSessionPosition,
 } from "@/lib/media/mediaSession";
@@ -17,6 +19,9 @@ export function bindSilentAudioToMediaSession(
   duration: number,
 ): void {
   if (!track) return;
+
+  registerMediaSessionActionHandlers();
+  syncAllMediaSessionControls();
 
   updateMediaSessionMetadata(track);
   setMediaSessionPlaybackState(isPlaying);

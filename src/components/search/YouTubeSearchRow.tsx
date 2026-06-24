@@ -8,6 +8,7 @@ import { TrackRowActions } from "@/components/content/TrackRowActions";
 import type { YouTubeSearchItem } from "@/lib/youtube/types";
 import type { PlayerTrack, Playlist } from "@/types/music";
 import { youtubeItemToPlayerTrack } from "@/types/music";
+import type { YouTubeAlbumItem } from "@/lib/youtube/types";
 import { COVER_SIZES } from "@/lib/images/coverSizes";
 
 interface YouTubeSearchRowProps {
@@ -16,6 +17,7 @@ interface YouTubeSearchRowProps {
   index: number;
   allTracks: PlayerTrack[];
   playlists: Playlist[];
+  youtubeAlbums?: YouTubeAlbumItem[];
   isAuthenticated: boolean;
   currentUserId?: string;
 }
@@ -31,6 +33,7 @@ export function YouTubeSearchRow({
   index,
   allTracks,
   playlists,
+  youtubeAlbums = [],
   isAuthenticated,
 }: YouTubeSearchRowProps) {
   const playCollection = usePlayerStore((s) => s.playCollection);
@@ -122,6 +125,7 @@ export function YouTubeSearchRow({
       <TrackRowActions
         track={track}
         playlists={playlists}
+        youtubeAlbums={youtubeAlbums}
         isAuthenticated={isAuthenticated}
         layout="spotify"
         kindLabel={kind}

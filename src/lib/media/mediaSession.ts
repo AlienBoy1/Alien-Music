@@ -1,10 +1,8 @@
+import { toggleLikeSong } from "@/app/actions/likes";
+import { indexSong } from "@/app/actions/indexSong";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import type { PlayerTrack, RepeatMode } from "@/types/music";
-import {
-  getActiveQueue,
-  getNextTrack,
-  getPreviousTrack,
-} from "@/lib/player/queueUtils";
+import { isEphemeralTrackId } from "@/types/music";
 import {
   buildCoverArtwork,
   buildYoutubeArtwork,
@@ -12,7 +10,28 @@ import {
 
 const APP_ALBUM = "Alien Music";
 
+/** Acciones extendidas soportadas en Chrome/Android (no estándar W3C). */
+const EXTENDED_ACTIONS = [
+  "toggleshuffle",
+  "shuffle",
+  "toggleRepeat",
+  "togglerepeat",
+  "repeat",
+  "like",
+  "unlike",
+  "togglelike",
+  "togglefavorite",
+] as const;
+
+type ExtendedAction = (typeof EXTENDED_ACTIONS)[number];
+
 let handlersRegistered = false;
+
+export interface MediaSessionLikeState {
+  track: PlayerTrack | null;
+  isLiked: boolean;
+  isAuthenticated: boolean;
+}
 
 export function resolveMediaSessionAlbum(track: PlayerTrack): string {
   if (track.albumTitle && track.albumTitle !== track.title) {
@@ -45,7 +64,7 @@ export function updateMediaSessionMetadata(track: PlayerTrack | null): void {
   try {
     navigator.mediaSession.metadata = buildMediaSessionMetadata(track);
   } catch {
-    // MediaMetadata no soportado en algunos contextos
+    /* MediaMetadata no soportado */
   }
 }
 
@@ -66,7 +85,7 @@ export function updateMediaSessionPosition(
       position: Math.min(position, duration),
     });
   } catch {
-    // ignore
+    /* ignore */
   }
 }
 
@@ -75,7 +94,6 @@ export function setMediaSessionPlaybackState(isPlaying: boolean): void {
   navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
 }
 
-/** Sincroniza estado de aleatorio/repetir con handlers nativos extendidos */
 export function syncMediaSessionModes(
   isShuffle: boolean,
   repeatMode: RepeatMode,
@@ -105,55 +123,84 @@ export function syncMediaSessionModes(
   }
 }
 
+async function toggleLikeFromMediaSession(track: PlayerTrack): Promise<void> {
+  let songId = track.id;
+
+  if (track.isEphemeral || isEphemeralTrackId(songId)) {
+    const indexed = await indexSong(track);
+    if (indexed.error || !indexed.data?.songId) return;
+    songId = indexed.data.songId;
+    usePlayerStore.getState().promoteEphemeralTrack(track.youtubeId, songId);
+  }
+
+  await toggleLikeSong(songId);
+  window.dispatchEvent(new CustomEvent("alien:likes-changed"));
+}
+
+/** Me gusta en controles nativos (Chrome Android 110+). */
+export function syncMediaSessionLike({
+  track,
+  isLiked,
+  isAuthenticated,
+}: MediaSessionLikeState): void {
+  if (!("mediaSession" in navigator)) return;
+
+  const clearLikeHandlers = () => {
+    for (const action of ["like", "unlike", "togglelike", "togglefavorite"] as const) {
+      safeSetHandler(action, null);
+    }
+  };
+
+  if (!track || !isAuthenticated) {
+    clearLikeHandlers();
+    return;
+  }
+
+  const toggle = () => {
+    void toggleLikeFromMediaSession(track);
+  };
+
+  clearLikeHandlers();
+
+  if (isLiked) {
+    safeSetHandler("unlike", toggle);
+    safeSetHandler("togglelike", toggle);
+    safeSetHandler("togglefavorite", toggle);
+  } else {
+    safeSetHandler("like", toggle);
+    safeSetHandler("togglelike", toggle);
+    safeSetHandler("togglefavorite", toggle);
+  }
+}
+
 /**
- * Habilita/deshabilita flechas Anterior/Siguiente en lock screen y notificaciones.
- * El SO muestra los botones solo cuando el handler no es null.
+ * Android/Chrome ocultan anterior/siguiente si el handler es null.
+ * Siempre los registramos mientras haya pista activa.
  */
 export function syncMediaSessionQueueNavigation(
   currentTrack: PlayerTrack | null,
-  queue: PlayerTrack[],
-  shuffledQueue: PlayerTrack[],
-  isShuffle: boolean,
-  repeatMode: RepeatMode,
 ): void {
   if (!("mediaSession" in navigator)) return;
 
-  if (!currentTrack || queue.length === 0) {
+  if (!currentTrack) {
     safeSetHandler("previoustrack", null);
     safeSetHandler("nexttrack", null);
     return;
   }
 
-  const activeQueue = getActiveQueue(queue, shuffledQueue, isShuffle);
-  const hasPrevious =
-    getPreviousTrack(currentTrack, activeQueue) !== null ||
-    activeQueue.length > 1;
-  const hasNext =
-    getNextTrack(currentTrack, activeQueue, repeatMode) !== null;
+  safeSetHandler("previoustrack", () => {
+    usePlayerStore.getState().previous();
+  });
 
-  safeSetHandler("previoustrack", hasPrevious
-    ? () => {
-        usePlayerStore.getState().previous();
-      }
-    : null);
-
-  safeSetHandler("nexttrack", hasNext
-    ? () => {
-        usePlayerStore.getState().next();
-      }
-    : null);
+  safeSetHandler("nexttrack", () => {
+    usePlayerStore.getState().next();
+  });
 }
 
 const SEEK_STEP_SECONDS = 10;
 
-const EXTENDED_ACTIONS = [
-  "toggleshuffle",
-  "toggleRepeat",
-  "repeat",
-] as const;
-
 function safeSetHandler(
-  action: MediaSessionAction | (typeof EXTENDED_ACTIONS)[number],
+  action: MediaSessionAction | ExtendedAction,
   handler: MediaSessionActionHandler | null,
 ): void {
   try {
@@ -162,11 +209,36 @@ function safeSetHandler(
       handler,
     );
   } catch {
-    // Acción no soportada en este navegador/OS
+    /* Acción no soportada en este navegador/OS */
   }
 }
 
-/** Registra handlers globales — previoustrack/nexttrack se sincronizan aparte */
+function refreshShuffleRepeatHandlers(): void {
+  const state = usePlayerStore.getState();
+  syncMediaSessionModes(state.isShuffle, state.repeatMode);
+}
+
+function registerShuffleRepeatHandlers(): void {
+  const onShuffle = () => {
+    usePlayerStore.getState().toggleShuffle();
+    refreshShuffleRepeatHandlers();
+  };
+
+  const onRepeat = () => {
+    usePlayerStore.getState().cycleRepeat();
+    refreshShuffleRepeatHandlers();
+  };
+
+  for (const action of ["toggleshuffle", "shuffle"] as const) {
+    safeSetHandler(action, onShuffle);
+  }
+
+  for (const action of ["toggleRepeat", "togglerepeat", "repeat"] as const) {
+    safeSetHandler(action, onRepeat);
+  }
+}
+
+/** Registra handlers globales de MediaSession (idempotente). */
 export function registerMediaSessionActionHandlers(): void {
   if (!("mediaSession" in navigator) || handlersRegistered) return;
   handlersRegistered = true;
@@ -203,49 +275,35 @@ export function registerMediaSessionActionHandlers(): void {
     store.seek(0);
   });
 
-  safeSetHandler("toggleshuffle", () => {
-    usePlayerStore.getState().toggleShuffle();
-    const state = usePlayerStore.getState();
-    syncMediaSessionModes(state.isShuffle, state.repeatMode);
-    syncMediaSessionQueueNavigation(
-      state.currentTrack,
-      state.queue,
-      state.shuffledQueue,
-      state.isShuffle,
-      state.repeatMode,
-    );
-  });
-
-  for (const action of ["toggleRepeat", "repeat"] as const) {
-    safeSetHandler(action, () => {
-      usePlayerStore.getState().cycleRepeat();
-      const state = usePlayerStore.getState();
-      syncMediaSessionModes(state.isShuffle, state.repeatMode);
-      syncMediaSessionQueueNavigation(
-        state.currentTrack,
-        state.queue,
-        state.shuffledQueue,
-        state.isShuffle,
-        state.repeatMode,
-      );
-    });
-  }
+  registerShuffleRepeatHandlers();
 
   const state = usePlayerStore.getState();
-  syncMediaSessionQueueNavigation(
-    state.currentTrack,
-    state.queue,
-    state.shuffledQueue,
-    state.isShuffle,
-    state.repeatMode,
-  );
+  syncMediaSessionQueueNavigation(state.currentTrack);
+  refreshShuffleRepeatHandlers();
+}
+
+/** Sincroniza todos los controles nativos (lock screen / notificación). */
+export function syncAllMediaSessionControls(
+  likeState?: MediaSessionLikeState,
+): void {
+  if (!("mediaSession" in navigator)) return;
+
+  registerMediaSessionActionHandlers();
+
+  const state = usePlayerStore.getState();
+  syncMediaSessionQueueNavigation(state.currentTrack);
+  refreshShuffleRepeatHandlers();
+
+  if (likeState) {
+    syncMediaSessionLike(likeState);
+  }
 }
 
 export function clearMediaSessionActionHandlers(): void {
   if (!("mediaSession" in navigator) || !handlersRegistered) return;
   handlersRegistered = false;
 
-  const actions: (MediaSessionAction | (typeof EXTENDED_ACTIONS)[number])[] = [
+  const actions: (MediaSessionAction | ExtendedAction)[] = [
     "play",
     "pause",
     "previoustrack",

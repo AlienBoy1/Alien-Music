@@ -27,7 +27,9 @@ import { toggleLikeSong } from "@/app/actions/likes";
 import { indexSong } from "@/app/actions/indexSong";
 import { addSongToPlaylist } from "@/app/actions/playlists";
 import { ShareWithFriendModal } from "@/components/share/ShareWithFriendModal";
+import { findAlbumForTrack } from "@/lib/search/albumMatch";
 import type { PlayerTrack, Playlist } from "@/types/music";
+import type { YouTubeAlbumItem } from "@/lib/youtube/types";
 import { isEphemeralTrackId } from "@/types/music";
 import { COVER_SIZES } from "@/lib/images/coverSizes";
 
@@ -38,6 +40,7 @@ interface TrackRowActionsProps {
   songId?: string;
   layout?: "default" | "spotify";
   kindLabel?: string;
+  youtubeAlbums?: YouTubeAlbumItem[];
 }
 
 interface MenuAnchor {
@@ -66,6 +69,7 @@ export function TrackRowActions({
   isAuthenticated = false,
   songId,
   layout = "default",
+  youtubeAlbums = [],
 }: TrackRowActionsProps) {
   const router = useRouter();
   const isDesktopMenu = useIsDesktopMenu();
@@ -220,9 +224,23 @@ export function TrackRowActions({
 
   const goToAlbum = () => {
     closeMenu();
+    const match = findAlbumForTrack(track, youtubeAlbums);
+    if (match) {
+      router.push(`/album/yt/${match.playlistId}`);
+      return;
+    }
+    if (track.albumPlaylistId) {
+      router.push(`/album/yt/${track.albumPlaylistId}`);
+      return;
+    }
     const q = track.albumTitle || track.title;
     router.push(`/search?q=${encodeURIComponent(q)}&filter=songs`);
   };
+
+  const canGoToAlbum =
+    Boolean(track.albumPlaylistId) ||
+    Boolean(findAlbumForTrack(track, youtubeAlbums)) ||
+    (Boolean(track.albumTitle) && track.albumTitle !== track.title);
 
   const menuContent = (
     <AnimatePresence>
@@ -358,14 +376,14 @@ export function TrackRowActions({
                   isDesktop={isDesktopMenu}
                   onClick={closeMenu}
                 />
-                {track.albumTitle ? (
-                  <SheetItem
-                    icon={<Disc3 size={22} />}
-                    label="Ir al álbum"
-                    isDesktop={isDesktopMenu}
-                    onClick={goToAlbum}
-                  />
-                ) : null}
+                    {canGoToAlbum ? (
+                      <SheetItem
+                        icon={<Disc3 size={22} />}
+                        label="Ir al álbum"
+                        isDesktop={isDesktopMenu}
+                        onClick={goToAlbum}
+                      />
+                    ) : null}
                 <SheetItem
                   icon={<UserRound size={22} />}
                   label="Ir al artista"

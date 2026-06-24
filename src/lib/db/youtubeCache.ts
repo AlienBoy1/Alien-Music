@@ -8,6 +8,7 @@ export interface CachedYoutubePayload {
   filter: SearchContentFilter;
   items: import("@/lib/youtube/types").YouTubeSearchItem[];
   youtubePlaylists: import("@/lib/youtube/types").YouTubePlaylistItem[];
+  youtubeAlbums?: import("@/lib/youtube/types").YouTubeAlbumItem[];
   nextPageToken?: string;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 interface LikesContextValue {
   likedSongIds: Set<string>;
@@ -21,6 +22,14 @@ export function LikesProvider({
   likedSongIds: string[];
   isAuthenticated: boolean;
 }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const onLikesChanged = () => router.refresh();
+    window.addEventListener("alien:likes-changed", onLikesChanged);
+    return () => window.removeEventListener("alien:likes-changed", onLikesChanged);
+  }, [router]);
+
   const value = useMemo(
     () => ({
       likedSongIds: new Set(likedSongIds),

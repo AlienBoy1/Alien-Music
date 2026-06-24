@@ -29,11 +29,21 @@ export interface YouTubePlaylistItem {
   source: "youtube";
 }
 
+/** Playlist de YouTube usada como álbum (full album, deluxe, etc.) */
+export interface YouTubeAlbumItem {
+  playlistId: string;
+  title: string;
+  artist: string;
+  thumbnailUrl: string;
+  itemCount?: number;
+}
+
 export interface YouTubeSearchResponse {
   query: string;
   filter: SearchContentFilter;
   items: YouTubeSearchItem[];
   youtubePlaylists: YouTubePlaylistItem[];
+  youtubeAlbums?: YouTubeAlbumItem[];
   nextPageToken?: string;
 }
 

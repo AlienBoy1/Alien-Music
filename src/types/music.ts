@@ -48,6 +48,8 @@ export interface PlayerTrack {
   isEphemeral?: boolean;
   /** Legacy fallback para canciones seed sin youtube_id */
   audioUrl?: string | null;
+  /** Playlist de YouTube que representa el álbum (para navegación) */
+  albumPlaylistId?: string;
 }
 
 export interface CommunityCatalogEntry {
@@ -85,13 +87,15 @@ export function songToPlayerTrack(song: Song): PlayerTrack {
 export function youtubeItemToPlayerTrack(
   item: import("@/lib/youtube/types").YouTubeSearchItem,
   type: MediaType = "audio",
+  album?: { title: string; playlistId: string },
 ): PlayerTrack {
   return {
     id: ephemeralTrackId(item.youtubeId),
     youtubeId: item.youtubeId,
     title: item.title,
     artistName: item.channelTitle,
-    albumTitle: item.title,
+    albumTitle: album?.title ?? item.title,
+    albumPlaylistId: album?.playlistId,
     coverUrl: item.thumbnailUrl,
     duration: item.duration,
     type: item.kind === "video" ? "video" : type,

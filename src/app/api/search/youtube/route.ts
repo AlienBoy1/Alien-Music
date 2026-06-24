@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
         filter: result.filter,
         items: result.items,
         youtubePlaylists: result.youtubePlaylists,
+        youtubeAlbums: result.youtubeAlbums ?? [],
         nextPageToken: result.nextPageToken,
       };
 

@@ -233,6 +233,40 @@ async function searchYouTubePlaylists(
   return { playlists, nextPageToken: searchData.nextPageToken };
 }
 
+/** Busca playlists tipo álbum en YouTube */
+async function searchYouTubeAlbums(
+  query: string,
+  apiKey: string,
+  maxResults: number,
+) {
+  const { playlists } = await searchYouTubePlaylists(
+    `${query.trim()} album`,
+    apiKey,
+    Math.min(maxResults, 12),
+  );
+
+  const albums = playlists
+    .filter((pl) => {
+      const t = pl.title.toLowerCase();
+      return (
+        t.includes("album") ||
+        t.includes("álbum") ||
+        t.includes("full") ||
+        t.includes("complete") ||
+        (pl.itemCount ?? 0) >= 4
+      );
+    })
+    .map((pl) => ({
+      playlistId: pl.playlistId,
+      title: pl.title.replace(/\s*[-–|]\s*full album.*/i, "").trim(),
+      artist: pl.channelTitle,
+      thumbnailUrl: pl.thumbnailUrl,
+      itemCount: pl.itemCount,
+    }));
+
+  return albums.slice(0, 8);
+}
+
 /**
  * Búsqueda unificada en YouTube con filtros y paginación.
  */
@@ -250,6 +284,7 @@ export async function searchYouTubeContent({
       filter,
       items: [] as YouTubeSearchItem[],
       youtubePlaylists: [] as YouTubePlaylistItem[],
+      youtubeAlbums: [] as import("./types").YouTubeAlbumItem[],
     };
   }
 
@@ -265,6 +300,7 @@ export async function searchYouTubeContent({
       filter,
       items: [],
       youtubePlaylists: playlists,
+      youtubeAlbums: [],
       nextPageToken,
     };
   }
@@ -272,19 +308,25 @@ export async function searchYouTubeContent({
   const effectiveFilter: SearchContentFilter =
     filter === "all" ? "all" : filter;
 
-  const { items, nextPageToken } = await searchVideos(
-    trimmed,
-    effectiveFilter === "all" ? "all" : effectiveFilter,
-    apiKey,
-    maxResults,
-    pageToken,
-  );
+  const [{ items, nextPageToken }, youtubeAlbums] = await Promise.all([
+    searchVideos(
+      trimmed,
+      effectiveFilter === "all" ? "all" : effectiveFilter,
+      apiKey,
+      maxResults,
+      pageToken,
+    ),
+    !pageToken && (filter === "all" || filter === "songs")
+      ? searchYouTubeAlbums(trimmed, apiKey, maxResults)
+      : Promise.resolve([] as import("./types").YouTubeAlbumItem[]),
+  ]);
 
   return {
     query: trimmed,
     filter,
     items,
     youtubePlaylists: [] as YouTubePlaylistItem[],
+    youtubeAlbums,
     nextPageToken,
   };
 }

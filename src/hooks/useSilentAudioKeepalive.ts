@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { SILENCE_MP3_DATA_URI } from "@/lib/audio/silenceUri";
 import {
-  attachSilentAudioGuard,
   bindSilentAudioToMediaSession,
+  attachSilentAudioGuard,
 } from "@/lib/media/silentAudioSession";
 
 /**

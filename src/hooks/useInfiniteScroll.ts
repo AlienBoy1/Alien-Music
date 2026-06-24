@@ -7,14 +7,19 @@ interface UseInfiniteScrollOptions {
   rootMargin?: string;
 }
 
-/** Dispara onLoadMore cuando el sentinel entra en viewport */
+/** Dispara onLoadMore cuando el sentinel entra en viewport (una sola vez por ciclo). */
 export function useInfiniteScroll({
   onLoadMore,
   hasMore,
   loading,
-  rootMargin = "200px",
+  rootMargin = "240px",
 }: UseInfiniteScrollOptions) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(loading);
+  const onLoadMoreRef = useRef(onLoadMore);
+
+  loadingRef.current = loading;
+  onLoadMoreRef.current = onLoadMore;
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -22,8 +27,10 @@ export function useInfiniteScroll({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !loading) {
-          onLoadMore();
+        const entry = entries[0];
+        if (entry?.isIntersecting && !loadingRef.current) {
+          loadingRef.current = true;
+          onLoadMoreRef.current();
         }
       },
       { rootMargin },
@@ -31,7 +38,7 @@ export function useInfiniteScroll({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, loading, onLoadMore, rootMargin]);
+  }, [hasMore, rootMargin]);
 
   return sentinelRef;
 }
