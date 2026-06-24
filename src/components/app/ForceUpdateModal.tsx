@@ -62,7 +62,7 @@ export function ForceUpdateModal({ minRequiredVersion }: ForceUpdateModalProps) 
         </button>
 
         <p className="mt-3 text-center text-xs text-text-muted">
-          Se limpiará el caché de la app y se descargará la versión más reciente.
+          Se limpiará el caché de la app. Tus descargas offline se conservarán.
         </p>
       </div>
     </div>

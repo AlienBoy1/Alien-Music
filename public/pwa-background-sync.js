@@ -1,9 +1,35 @@
 /**
  * PWA helpers: Background Sync, descargas offline y activación manual de SW.
  */
+const PRESERVED_OFFLINE_CACHES = Object.freeze([
+  "alien-music-audio-v1",
+  "alien-music-covers-v1",
+]);
+
+async function purgeNonOfflineCaches() {
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((name) => !PRESERVED_OFFLINE_CACHES.includes(name))
+      .map((name) => caches.delete(name)),
+  );
+}
+
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === "PURGE_APP_CACHES") {
+    event.waitUntil(
+      purgeNonOfflineCaches().then(async () => {
+        const clients = await self.clients.matchAll({ type: "window" });
+        for (const client of clients) {
+          client.postMessage({ type: "APP_CACHES_PURGED" });
+        }
+      }),
+    );
     return;
   }
 

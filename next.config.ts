@@ -8,6 +8,7 @@ const withPWA = withPWAInit({
   workboxOptions: {
     skipWaiting: false,
     clientsClaim: true,
+    cleanupOutdatedCaches: true,
     importScripts: ["/pwa-background-sync.js"],
     runtimeCaching: [
       {

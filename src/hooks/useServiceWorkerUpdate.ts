@@ -90,6 +90,9 @@ export function useServiceWorkerUpdate() {
     applyingRef.current = true;
 
     try {
+      const { purgeForAppUpdate } = await import("@/lib/pwa/cacheCleanup");
+      await purgeForAppUpdate();
+
       const reg =
         registrationRef.current ?? (await navigator.serviceWorker.ready);
       const waiting = reg.waiting;
