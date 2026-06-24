@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
-import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { debouncedLocalStorage } from "@/lib/storage/debouncedStorage";
 
@@ -25,19 +24,14 @@ function getNetworkType(): EffectiveNetworkType {
 }
 
 /**
- * Protección anti-suspensión en segundo plano:
- * - Wake Lock mientras reproduce en primer plano
- * - Registro de Background Sync al ocultar la pestaña (flush de estado)
- * - Preload agresivo en redes lentas
+ * Protección anti-suspensión — NO pausa ni resetea al ocultar pestaña.
+ * Solo persiste estado en localStorage al ir a segundo plano.
  */
 export function useBackgroundPlayback(
   audioRef: React.RefObject<HTMLAudioElement | null>,
 ) {
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
-  const playbackSource = usePlayerStore((s) => s.playbackSource);
-  const pageVisible = usePageVisibility();
-  const resumeAttemptRef = useRef(0);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
 
   useWakeLock(isPlaying);
 
@@ -50,52 +44,24 @@ export function useBackgroundPlayback(
     audio.preload = isSlowNetwork ? "auto" : "metadata";
   }, [audioRef, isSlowNetwork, currentTrack?.id]);
 
-  /** Flush + Background Sync al pasar a segundo plano / bloquear pantalla */
+  /** Persistir progreso al ocultar — sin mutar isPlaying ni currentTime */
   useEffect(() => {
-    if (pageVisible) return;
+    const onHide = () => {
+      if (document.visibilityState !== "hidden") return;
+      debouncedLocalStorage.flush();
+    };
 
-    debouncedLocalStorage.flush();
+    window.addEventListener("pagehide", onHide);
+    document.addEventListener("visibilitychange", onHide);
 
-    if (
-      typeof navigator !== "undefined" &&
-      "serviceWorker" in navigator
-    ) {
-      void navigator.serviceWorker.ready
-        .then((reg) => {
-          const sync = (
-            reg as ServiceWorkerRegistration & {
-              sync?: { register: (tag: string) => Promise<void> };
-            }
-          ).sync;
-          return sync?.register("alien-music-playback-sync");
-        })
-        .catch(() => {});
-    }
-  }, [pageVisible]);
-
-  /**
-   * En iOS/Android el iframe de YouTube puede pausarse al bloquear.
-   * Reintenta play() al volver si el usuario no pausó manualmente.
-   */
-  useEffect(() => {
-    if (!pageVisible || !isPlaying) return;
-
-    const id = window.setTimeout(() => {
-      const store = usePlayerStore.getState();
-      if (!store.isPlaying || store.playbackSource !== "youtube") return;
-      resumeAttemptRef.current += 1;
-      if (resumeAttemptRef.current > 3) return;
-      store.play();
-    }, 300);
-
-    return () => window.clearTimeout(id);
-  }, [pageVisible, isPlaying]);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, []);
 
   return {
-    pageVisible,
     isSlowNetwork,
-    forceBackgroundAudioOnly:
-      !pageVisible && playbackSource === "youtube",
   };
 }
 

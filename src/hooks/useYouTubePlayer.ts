@@ -20,6 +20,17 @@ function youtubeWatchUrl(youtubeId: string) {
   return `https://www.youtube.com/watch?v=${youtubeId}`;
 }
 
+/** Ignora lecturas corruptas del iframe (p. ej. 0 al ocultar pestaña) */
+function isCorruptTimeRead(
+  reportedTime: number,
+  storeTime: number,
+): boolean {
+  if (!Number.isFinite(reportedTime) || reportedTime < 0) return true;
+  if (storeTime > 8 && reportedTime < 1) return true;
+  if (storeTime > 30 && reportedTime < storeTime * 0.05) return true;
+  return false;
+}
+
 /**
  * Sincroniza react-player (YouTube) con playerStore:
  * play/pause, volumen, seekRevision, progreso y fin de pista.
@@ -48,25 +59,41 @@ export function useYouTubePlayer(
   const isSeekingFromStoreRef = useRef(false);
   const podcastSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resumeAppliedRef = useRef<string | null>(null);
+  const lastYoutubeIdRef = useRef<string | null>(null);
 
   const isYoutubeActive =
     playbackSource === "youtube" && Boolean(currentTrack?.youtubeId);
 
-  // Reset al cambiar de pista
+  // Reset SOLO al cambiar de pista YouTube (no por visibilidad ni isYoutubeActive)
   useEffect(() => {
-    if (!isYoutubeActive) return;
+    const youtubeId = currentTrack?.youtubeId ?? null;
+    if (!youtubeId || playbackSource !== "youtube") return;
+    if (lastYoutubeIdRef.current === youtubeId) return;
+
+    lastYoutubeIdRef.current = youtubeId;
     setPlayerReady(false);
     setLoading(true);
     recordedTrackRef.current = null;
     lastSeekRevisionRef.current = 0;
     resumeAppliedRef.current = null;
+
     if (podcastSaveTimerRef.current) {
       clearInterval(podcastSaveTimerRef.current);
       podcastSaveTimerRef.current = null;
     }
-  }, [currentTrack?.youtubeId, isYoutubeActive, setLoading, setPlayerReady]);
+  }, [
+    currentTrack?.youtubeId,
+    playbackSource,
+    setLoading,
+    setPlayerReady,
+  ]);
 
-  // Guardar progreso de podcast cada 5s
+  useEffect(() => {
+    if (!currentTrack?.youtubeId) {
+      lastYoutubeIdRef.current = null;
+    }
+  }, [currentTrack?.youtubeId]);
+
   useEffect(() => {
     if (!isYoutubeActive || currentTrack?.category !== "podcast") return;
 
@@ -86,13 +113,11 @@ export function useYouTubePlayer(
     };
   }, [currentTrack?.youtubeId, currentTrack?.category, isYoutubeActive]);
 
-  // Media Session: metadata en cada cambio de pista YouTube
   useEffect(() => {
     if (!isYoutubeActive || !currentTrack) return;
     updateMediaSessionMetadata(currentTrack);
   }, [currentTrack, isYoutubeActive]);
 
-  // Seek desde la UI (barra de progreso / atajos / lock screen)
   useEffect(() => {
     if (!isYoutubeActive || !isPlayerReady) return;
     if (seekRevision === lastSeekRevisionRef.current) return;
@@ -105,7 +130,7 @@ export function useYouTubePlayer(
     try {
       el.currentTime = currentTime;
     } catch {
-      // YouTube iframe puede rechazar seeks prematuros
+      /* seek prematuro en iframe */
     }
     window.setTimeout(() => {
       isSeekingFromStoreRef.current = false;
@@ -144,7 +169,7 @@ export function useYouTubePlayer(
         usePlayerStore.getState().setCurrentTime(seekTo);
         lastSeekRevisionRef.current = usePlayerStore.getState().seekRevision;
       } catch {
-        // ignore
+        /* ignore */
       }
       window.setTimeout(() => {
         isSeekingFromStoreRef.current = false;
@@ -170,6 +195,8 @@ export function useYouTubePlayer(
       const time = e.currentTarget.currentTime;
       const dur = e.currentTarget.duration || 0;
       const storeTime = usePlayerStore.getState().currentTime;
+
+      if (isCorruptTimeRead(time, storeTime)) return;
 
       if (Math.abs(time - storeTime) > TIME_SYNC_THRESHOLD) {
         setCurrentTime(time);
@@ -203,7 +230,6 @@ export function useYouTubePlayer(
 
   const handleError = useCallback(() => {
     setLoading(false);
-    usePlayerStore.getState().pause();
   }, [setLoading]);
 
   return {

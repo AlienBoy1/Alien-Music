@@ -6,7 +6,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider
       refetchInterval={5 * 60}
-      refetchOnWindowFocus
+      refetchOnWindowFocus={false}
       refetchWhenOffline={false}
     >
       {children}

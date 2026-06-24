@@ -48,12 +48,12 @@ export function AppShell({ children, session, playlists }: AppShellProps) {
           <MobileNav />
           <ErrorBoundary
             fallbackTitle="Reproductor no disponible"
-            fallbackMessage="Hubo un problema con el motor de audio/video. El resto de la app sigue activo."
+            fallbackMessage="Hubo un problema con el panel expandido. El motor de audio sigue activo."
           >
             <ExpandedPlayer />
             <PlayerBar />
-            <AudioEngine />
           </ErrorBoundary>
+          <AudioEngine />
         </div>
       </PlayerPersistProvider>
     </SettingsProvider>

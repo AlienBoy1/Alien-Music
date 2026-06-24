@@ -34,11 +34,11 @@ export function RecentlyPlayedSection({
 
     if (data) {
       const mapped = data
-        .map((row) => {
-          const raw = row.songs as unknown as Parameters<typeof mapDbSong>[0] | null;
+        .map((row: { played_at: string; songs: unknown }) => {
+          const raw = row.songs as Parameters<typeof mapDbSong>[0] | null;
           return raw ? mapDbSong(raw) : null;
         })
-        .filter((s): s is Song => s !== null);
+        .filter((s: Song | null): s is Song => s !== null);
       setSongs(mapped);
     }
   }, [userId]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -12,21 +12,23 @@ import { usePlayerStore } from "@/lib/stores/playerStore";
 import { useSettingsStore } from "@/lib/stores/settingsStore";
 import { isMobileNetwork } from "@/lib/settings/storage";
 import { youtubeQualityConfig } from "@/lib/youtube/quality";
-import {
-  YOUTUBE_KEEPALIVE_STYLE,
-} from "@/lib/player/youtubeKeepaliveStyle";
+import { YOUTUBE_KEEPALIVE_STYLE } from "@/lib/player/youtubeKeepaliveStyle";
 
 const ReactPlayerLazy = dynamic(() => import("react-player"), { ssr: false });
 
+/**
+ * Motor de audio/video — ReactPlayer permanece montado siempre.
+ * Nunca desmontar el iframe: solo cambiar src/volumen/visibilidad CSS.
+ */
 export function AudioEngine() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const youtubeRef = useRef<HTMLVideoElement | null>(null);
   const keepaliveRef = useSilentAudioKeepalive();
+  const mountedYoutubeIdRef = useRef<string | null>(null);
 
   useAudioPlayer(audioRef);
   useMediaSession();
-  const { forceBackgroundAudioOnly, isSlowNetwork } =
-    useBackgroundPlayback(audioRef);
+  const { isSlowNetwork } = useBackgroundPlayback(audioRef);
 
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const videoPanelMode = usePlayerStore((s) => s.videoPanelMode);
@@ -49,19 +51,21 @@ export function AudioEngine() {
     isMobileNetwork() &&
     currentTrack?.type === "video";
 
-  const backgroundAudioOnly = forceBackgroundAudioOnly;
-
   const isVideoMode =
+    Boolean(currentTrack) &&
     currentTrack?.type === "video" &&
     !forceAudioOnly &&
-    !backgroundAudioOnly &&
     (isExpandedMode || videoPanelMode !== "hidden");
 
   const isMaximized =
     isExpandedMode || videoPanelMode === "maximized";
 
-  /** El iframe 1×1 visible evita suspensión del SO en audio-only */
-  const useKeepaliveContainer = !isVideoMode;
+  /** Key estable: solo remontar al cambiar pista o calidad, NUNCA por visibilidad */
+  const playerInstanceKey = useMemo(() => {
+    const id = currentTrack?.youtubeId ?? "idle";
+    if (id !== "idle") mountedYoutubeIdRef.current = id;
+    return `${mountedYoutubeIdRef.current ?? id}-${videoQuality}`;
+  }, [currentTrack?.youtubeId, videoQuality]);
 
   let containerClass = "pointer-events-none fixed overflow-hidden";
 
@@ -78,7 +82,12 @@ export function AudioEngine() {
     }
   }
 
-  const containerStyle = useKeepaliveContainer ? YOUTUBE_KEEPALIVE_STYLE : undefined;
+  const wrapperStyle: React.CSSProperties = isVideoMode
+    ? {}
+    : {
+        ...YOUTUBE_KEEPALIVE_STYLE,
+        display: currentTrack?.youtubeId ? "block" : "none",
+      };
 
   return (
     <>
@@ -97,68 +106,67 @@ export function AudioEngine() {
         tabIndex={-1}
       />
 
-      {youtube.youtubeSrc && (
-        <div
-          className={containerClass}
-          style={containerStyle}
-          aria-hidden={!isVideoMode}
-        >
-          {isVideoMode && !isExpandedMode && (
-            <div className="absolute right-2 top-2 z-10 flex gap-1">
-              <button
-                type="button"
-                onClick={toggleVideoMaximize}
-                className="rounded-full bg-black/70 p-1.5 text-white transition-colors hover:bg-accent hover:text-black"
-                aria-label={isMaximized ? "Restaurar tamaño" : "Maximizar video"}
-              >
-                {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-              </button>
-              <button
-                type="button"
-                onClick={hideVideo}
-                className="rounded-full bg-black/70 p-1.5 text-white transition-colors hover:bg-accent hover:text-black"
-                aria-label="Ocultar video (solo audio)"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
+      {/* ReactPlayer SIEMPRE montado — evita reset al cambiar pestaña */}
+      <div
+        className={containerClass}
+        style={wrapperStyle}
+        aria-hidden={!isVideoMode}
+      >
+        {isVideoMode && !isExpandedMode && (
+          <div className="absolute right-2 top-2 z-10 flex gap-1">
+            <button
+              type="button"
+              onClick={toggleVideoMaximize}
+              className="rounded-full bg-black/70 p-1.5 text-white transition-colors hover:bg-accent hover:text-black"
+              aria-label={isMaximized ? "Restaurar tamaño" : "Maximizar video"}
+            >
+              {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
+            <button
+              type="button"
+              onClick={hideVideo}
+              className="rounded-full bg-black/70 p-1.5 text-white transition-colors hover:bg-accent hover:text-black"
+              aria-label="Ocultar video (solo audio)"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
-          <ReactPlayerLazy
-            ref={youtubeRef}
-            src={youtube.youtubeSrc}
-            playing={youtube.playing}
-            volume={youtube.volume}
-            muted={youtube.muted}
-            loop={youtube.loop}
-            playsInline
-            controls={false}
-            width={isVideoMode ? "100%" : 1}
-            height={isVideoMode ? "100%" : 1}
-            style={
-              isVideoMode
-                ? { width: "100%", height: "100%" }
-                : YOUTUBE_KEEPALIVE_STYLE
-            }
-            config={{
-              youtube: {
-                color: "white",
-                rel: 0,
-                iv_load_policy: 3,
-                ...ytQuality,
-              },
-            }}
-            key={`${youtube.youtubeSrc}-${videoQuality}-${backgroundAudioOnly ? "bg" : "fg"}`}
-            onReady={youtube.onReady}
-            onWaiting={youtube.onWaiting}
-            onPlaying={youtube.onPlaying}
-            onDurationChange={youtube.onDurationChange}
-            onTimeUpdate={youtube.onTimeUpdate}
-            onEnded={youtube.onEnded}
-            onError={youtube.onError}
-          />
-        </div>
-      )}
+        <ReactPlayerLazy
+          ref={youtubeRef}
+          src={youtube.youtubeSrc ?? ""}
+          playing={youtube.playing}
+          volume={youtube.volume}
+          muted={youtube.muted}
+          loop={youtube.loop}
+          playsInline
+          controls={false}
+          width={isVideoMode ? "100%" : 1}
+          height={isVideoMode ? "100%" : 1}
+          style={
+            isVideoMode
+              ? { width: "100%", height: "100%" }
+              : YOUTUBE_KEEPALIVE_STYLE
+          }
+          config={{
+            youtube: {
+              color: "white",
+              rel: 0,
+              iv_load_policy: 3,
+              ...ytQuality,
+            },
+          }}
+          key={playerInstanceKey}
+          onReady={youtube.onReady}
+          onWaiting={youtube.onWaiting}
+          onPlaying={youtube.onPlaying}
+          onDurationChange={youtube.onDurationChange}
+          onTimeUpdate={youtube.onTimeUpdate}
+          onEnded={youtube.onEnded}
+          onError={youtube.onError}
+        />
+      </div>
     </>
   );
 }
