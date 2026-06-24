@@ -15,4 +15,4 @@ ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "app_config_select_public" ON app_config
   FOR SELECT USING (true);
 
--- Solo service_role puede modificar (sin política INSERT/UPDATE para anon/authenticated)
+-- Solo service_role puede modificar (sin política INSERT/UPDATE para anon/authenticated) jsjsjs
