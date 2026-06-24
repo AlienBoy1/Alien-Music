@@ -7,6 +7,7 @@ import {
   registerMediaSessionActionHandlers,
   setMediaSessionPlaybackState,
   syncMediaSessionModes,
+  syncMediaSessionQueueNavigation,
   updateMediaSessionMetadata,
   updateMediaSessionPosition,
 } from "@/lib/media/mediaSession";
@@ -22,6 +23,8 @@ export function useMediaSession() {
   const repeatMode = usePlayerStore((s) => s.repeatMode);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
+  const queue = usePlayerStore((s) => s.queue);
+  const shuffledQueue = usePlayerStore((s) => s.shuffledQueue);
 
   useEffect(() => {
     registerMediaSessionActionHandlers();
@@ -39,6 +42,16 @@ export function useMediaSession() {
   useEffect(() => {
     syncMediaSessionModes(isShuffle, repeatMode);
   }, [isShuffle, repeatMode]);
+
+  useEffect(() => {
+    syncMediaSessionQueueNavigation(
+      currentTrack,
+      queue,
+      shuffledQueue,
+      isShuffle,
+      repeatMode,
+    );
+  }, [currentTrack, queue, shuffledQueue, isShuffle, repeatMode]);
 
   useEffect(() => {
     if (duration > 0) {

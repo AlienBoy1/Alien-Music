@@ -72,7 +72,6 @@ export default function SearchPageClient({
   const urlQuery = searchParams.get("q") ?? "";
   const urlFilter = searchParams.get("filter") ?? "all";
   const storeQuery = useSearchStore((s) => s.query);
-  const setQuery = useSearchStore((s) => s.setQuery);
   const isOnline = useOfflineStore((s) => s.isOnline);
   const playCollection = usePlayerStore((s) => s.playCollection);
 
@@ -92,10 +91,6 @@ export default function SearchPageClient({
 
   const activeQuery = urlQuery || storeQuery;
   const debouncedQuery = useDebounce(activeQuery, 300);
-
-  useEffect(() => {
-    if (urlQuery) setQuery(urlQuery);
-  }, [urlQuery, setQuery]);
 
   useEffect(() => {
     if (VALID_FILTERS.includes(urlFilter as SearchContentFilter)) {

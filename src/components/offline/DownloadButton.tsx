@@ -6,7 +6,7 @@ import { useOfflineStore } from "@/lib/stores/offlineStore";
 
 interface DownloadButtonProps {
   track: PlayerTrack;
-  variant?: "icon" | "menu";
+  variant?: "icon" | "menu" | "toolbar";
   className?: string;
 }
 
@@ -39,6 +39,29 @@ export function DownloadButton({
     : isDownloading
       ? "Descargando..."
       : "Descargar para offline";
+
+  if (variant === "toolbar") {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isDownloading}
+        className={`flex flex-col items-center gap-1 p-2 transition-colors hover:text-accent disabled:opacity-60 ${
+          isDownloaded ? "text-accent" : "text-white/55"
+        } ${className}`}
+        aria-label={label}
+      >
+        {isDownloading ? (
+          <Loader2 size={20} className="animate-spin" />
+        ) : isDownloaded ? (
+          <Check size={20} />
+        ) : (
+          <Download size={20} />
+        )}
+        <span className="text-[10px]">Descargar</span>
+      </button>
+    );
+  }
 
   if (variant === "menu") {
     return (

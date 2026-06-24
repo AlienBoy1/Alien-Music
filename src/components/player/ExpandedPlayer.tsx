@@ -24,6 +24,7 @@ import { ImmersiveAuroraBackground } from "@/components/player/ImmersiveAuroraBa
 import { EphemeralLikeButton } from "@/components/search/EphemeralLikeButton";
 import { LikeButton } from "@/components/content/LikeButton";
 import { ShareWithFriendModal } from "@/components/share/ShareWithFriendModal";
+import { DownloadButton } from "@/components/offline/DownloadButton";
 import { isEphemeralTrackId } from "@/types/music";
 
 function ControlWithIndicator({
@@ -296,7 +297,7 @@ export function ExpandedPlayer() {
         </div>
 
         {/* Barra herramientas */}
-        <div className="mx-auto mt-6 flex max-w-sm items-center justify-between text-white/55">
+        <div className="mx-auto mt-6 flex max-w-md items-center justify-between text-white/55">
           <button
             type="button"
             className="flex flex-col items-center gap-1 p-2 transition-colors hover:text-accent"
@@ -306,6 +307,8 @@ export function ExpandedPlayer() {
             <MonitorSpeaker size={20} />
             <span className="text-[10px]">Dispositivo</span>
           </button>
+
+          <DownloadButton track={currentTrack} variant="toolbar" />
 
           <button
             type="button"

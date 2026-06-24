@@ -4,9 +4,7 @@ import Image from "next/image";
 import { Play, Video } from "lucide-react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { formatTime } from "@/lib/utils/format";
-import { EphemeralLikeButton } from "@/components/search/EphemeralLikeButton";
-import { EphemeralPlaylistMenu } from "@/components/search/EphemeralPlaylistMenu";
-import { DownloadButton } from "@/components/offline/DownloadButton";
+import { TrackRowActions } from "@/components/content/TrackRowActions";
 import type { YouTubeSearchItem } from "@/lib/youtube/types";
 import type { PlayerTrack, Playlist } from "@/types/music";
 import { youtubeItemToPlayerTrack } from "@/types/music";
@@ -29,7 +27,6 @@ export function YouTubeSearchRow({
   allTracks,
   playlists,
   isAuthenticated,
-  currentUserId,
 }: YouTubeSearchRowProps) {
   const playCollection = usePlayerStore((s) => s.playCollection);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -56,20 +53,20 @@ export function YouTubeSearchRow({
   };
 
   return (
-    <div className="group flex w-full items-center gap-4 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-surface-highlight hover:shadow-[inset_0_0_16px_rgba(0,255,159,0.04)]">
+    <div className="group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-surface-highlight hover:shadow-[inset_0_0_16px_rgba(0,255,159,0.04)] sm:gap-4">
       <button
         type="button"
         onClick={handlePlay}
-        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left sm:gap-4"
       >
-        <span className="w-6 text-center text-sm text-text-muted group-hover:hidden">
+        <span className="hidden w-6 shrink-0 text-center text-sm text-text-muted group-hover:hidden sm:inline">
           {isCurrent ? (
             <span className="text-accent">♪</span>
           ) : (
             index + 1
           )}
         </span>
-        <span className="hidden w-6 text-center text-accent drop-shadow-[0_0_6px_rgba(0,255,159,0.5)] group-hover:block">
+        <span className="hidden w-6 shrink-0 text-center text-accent drop-shadow-[0_0_6px_rgba(0,255,159,0.5)] group-hover:inline sm:group-hover:inline">
           ▶
         </span>
 
@@ -107,7 +104,7 @@ export function YouTubeSearchRow({
           </p>
         </div>
 
-        <span className="hidden text-xs text-text-muted sm:inline">
+        <span className="hidden shrink-0 text-xs text-text-muted sm:inline">
           {item.duration > 0 ? formatTime(item.duration) : "—"}
         </span>
       </button>
@@ -115,7 +112,7 @@ export function YouTubeSearchRow({
       <button
         type="button"
         onClick={handlePlayAsVideo}
-        className="hidden rounded-full p-2 text-text-muted opacity-0 transition-all hover:bg-surface-highlight hover:text-alien-cyan group-hover:opacity-100 md:block"
+        className="hidden shrink-0 rounded-full p-2 text-text-muted opacity-0 transition-all hover:bg-surface-highlight hover:text-alien-cyan group-hover:opacity-100 md:block"
         title="Reproducir como video"
         aria-label="Reproducir como video"
       >
@@ -125,19 +122,16 @@ export function YouTubeSearchRow({
       <button
         type="button"
         onClick={handlePlay}
-        className="alien-btn-play flex h-8 w-8 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"
+        className="alien-btn-play hidden h-8 w-8 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 sm:flex"
         aria-label={`Reproducir ${item.title}`}
       >
         <Play size={14} fill="currentColor" className="ml-0.5 text-black" />
       </button>
 
-      <EphemeralLikeButton track={track} />
-      <DownloadButton track={track} />
-      <EphemeralPlaylistMenu
+      <TrackRowActions
         track={track}
         playlists={playlists}
         isAuthenticated={isAuthenticated}
-        currentUserId={currentUserId}
       />
     </div>
   );

@@ -9,9 +9,7 @@ import {
   useIsTrackCurrent,
 } from "@/lib/stores/playerStore";
 import { formatTime } from "@/lib/utils/format";
-import { LikeButton } from "@/components/content/LikeButton";
-import { TrackActionsMenu } from "@/components/content/TrackActionsMenu";
-import { AddToPlaylistMenu } from "@/components/playlists/AddToPlaylistMenu";
+import { TrackRowActions } from "@/components/content/TrackRowActions";
 import { COVER_SIZES } from "@/lib/images/coverSizes";
 
 interface SongRowProps {
@@ -122,9 +120,8 @@ export const SongRow = memo(function SongRow({
         </button>
       )}
 
-      <LikeButton songId={song.id} />
-      <TrackActionsMenu track={track} isAuthenticated={isAuthenticated} />
-      <AddToPlaylistMenu
+      <TrackRowActions
+        track={track}
         songId={song.id}
         playlists={playlists}
         isAuthenticated={isAuthenticated}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { Suspense, useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Session } from "next-auth";
@@ -12,14 +12,11 @@ import {
   LogIn,
   Menu,
   MessageSquare,
-  Search,
   Settings,
 } from "lucide-react";
-import { useSearchStore } from "@/lib/stores/searchStore";
-import { useDebounce } from "@/hooks/useDebounce";
-import { useEffect } from "react";
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import { MobileDrawer } from "@/components/layout/MobileDrawer";
+import { SearchInput } from "@/components/search/SearchInput";
 import type { Playlist } from "@/types/music";
 
 interface TopBarProps {
@@ -28,25 +25,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ session, playlists = [] }: TopBarProps) {
-  const router = useRouter();
   const pathname = usePathname();
-  const query = useSearchStore((s) => s.query);
-  const setQuery = useSearchStore((s) => s.setQuery);
-  const debouncedQuery = useDebounce(query, 300);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    const trimmed = debouncedQuery.trim();
-    if (!trimmed) return;
-    if (pathname === "/search") {
-      router.replace(`/search?q=${encodeURIComponent(trimmed)}`, { scroll: false });
-    }
-  }, [debouncedQuery, pathname, router]);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    router.push(`/search?q=${encodeURIComponent(query)}`);
-  };
 
   return (
     <>
@@ -58,7 +38,6 @@ export function TopBar({ session, playlists = [] }: TopBarProps) {
       />
 
       <header className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center gap-2 border-b border-border bg-surface/60 px-3 backdrop-blur-xl md:gap-4 md:px-4">
-        {/* Móvil: menú hamburguesa */}
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -71,7 +50,7 @@ export function TopBar({ session, playlists = [] }: TopBarProps) {
         <div className="hidden items-center gap-2 md:flex">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => window.history.back()}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface-highlight/80 text-text-muted transition-all duration-200 hover:border-accent/30 hover:text-accent hover:shadow-[0_0_12px_rgba(0,255,159,0.15)]"
             aria-label="Atrás"
           >
@@ -79,7 +58,7 @@ export function TopBar({ session, playlists = [] }: TopBarProps) {
           </button>
           <button
             type="button"
-            onClick={() => router.forward()}
+            onClick={() => window.history.forward()}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface-highlight/80 text-text-muted transition-all duration-200 hover:border-accent/30 hover:text-accent hover:shadow-[0_0_12px_rgba(0,255,159,0.15)]"
             aria-label="Adelante"
           >
@@ -87,28 +66,16 @@ export function TopBar({ session, playlists = [] }: TopBarProps) {
           </button>
         </div>
 
-        <form onSubmit={handleSearchSubmit} className="mx-auto min-w-0 flex-1 md:max-w-xl">
-          <div className="group relative">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted transition-colors group-focus-within:text-accent"
-            />
-            <input
-              type="search"
-              placeholder="Buscar en el universo..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (e.target.value.trim() && pathname !== "/search") {
-                  router.push(`/search?q=${encodeURIComponent(e.target.value.trim())}`);
-                }
-              }}
-              className="w-full rounded-full border border-border bg-surface-highlight/80 py-2 pl-10 pr-3 text-sm text-white placeholder:text-text-muted transition-all duration-200 focus:border-accent/40 focus:outline-none focus:shadow-[0_0_20px_rgba(0,255,159,0.12)] md:py-2.5 md:pr-4"
-            />
-          </div>
-        </form>
+        <Suspense
+          fallback={
+            <div className="mx-auto min-w-0 flex-1 md:max-w-xl">
+              <div className="h-9 rounded-full bg-surface-highlight/60 md:h-10" />
+            </div>
+          }
+        >
+          <SearchInput />
+        </Suspense>
 
-        {/* Móvil: avatar + accesos rápidos */}
         <div className="flex shrink-0 items-center gap-1 md:hidden">
           {session ? (
             <button

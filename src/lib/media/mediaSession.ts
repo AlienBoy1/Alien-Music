@@ -1,6 +1,11 @@
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import type { PlayerTrack, RepeatMode } from "@/types/music";
 import {
+  getActiveQueue,
+  getNextTrack,
+  getPreviousTrack,
+} from "@/lib/player/queueUtils";
+import {
   buildCoverArtwork,
   buildYoutubeArtwork,
 } from "@/lib/media/youtubeArtwork";
@@ -100,6 +105,45 @@ export function syncMediaSessionModes(
   }
 }
 
+/**
+ * Habilita/deshabilita flechas Anterior/Siguiente en lock screen y notificaciones.
+ * El SO muestra los botones solo cuando el handler no es null.
+ */
+export function syncMediaSessionQueueNavigation(
+  currentTrack: PlayerTrack | null,
+  queue: PlayerTrack[],
+  shuffledQueue: PlayerTrack[],
+  isShuffle: boolean,
+  repeatMode: RepeatMode,
+): void {
+  if (!("mediaSession" in navigator)) return;
+
+  if (!currentTrack || queue.length === 0) {
+    safeSetHandler("previoustrack", null);
+    safeSetHandler("nexttrack", null);
+    return;
+  }
+
+  const activeQueue = getActiveQueue(queue, shuffledQueue, isShuffle);
+  const hasPrevious =
+    getPreviousTrack(currentTrack, activeQueue) !== null ||
+    activeQueue.length > 1;
+  const hasNext =
+    getNextTrack(currentTrack, activeQueue, repeatMode) !== null;
+
+  safeSetHandler("previoustrack", hasPrevious
+    ? () => {
+        usePlayerStore.getState().previous();
+      }
+    : null);
+
+  safeSetHandler("nexttrack", hasNext
+    ? () => {
+        usePlayerStore.getState().next();
+      }
+    : null);
+}
+
 const SEEK_STEP_SECONDS = 10;
 
 const EXTENDED_ACTIONS = [
@@ -122,7 +166,7 @@ function safeSetHandler(
   }
 }
 
-/** Registra handlers globales una sola vez — usan getState() para evitar closures obsoletos */
+/** Registra handlers globales — previoustrack/nexttrack se sincronizan aparte */
 export function registerMediaSessionActionHandlers(): void {
   if (!("mediaSession" in navigator) || handlersRegistered) return;
   handlersRegistered = true;
@@ -133,14 +177,6 @@ export function registerMediaSessionActionHandlers(): void {
 
   safeSetHandler("pause", () => {
     usePlayerStore.getState().pause();
-  });
-
-  safeSetHandler("previoustrack", () => {
-    usePlayerStore.getState().previous();
-  });
-
-  safeSetHandler("nexttrack", () => {
-    usePlayerStore.getState().next();
   });
 
   safeSetHandler("seekto", (details) => {
@@ -169,17 +205,40 @@ export function registerMediaSessionActionHandlers(): void {
 
   safeSetHandler("toggleshuffle", () => {
     usePlayerStore.getState().toggleShuffle();
-    const { isShuffle, repeatMode } = usePlayerStore.getState();
-    syncMediaSessionModes(isShuffle, repeatMode);
+    const state = usePlayerStore.getState();
+    syncMediaSessionModes(state.isShuffle, state.repeatMode);
+    syncMediaSessionQueueNavigation(
+      state.currentTrack,
+      state.queue,
+      state.shuffledQueue,
+      state.isShuffle,
+      state.repeatMode,
+    );
   });
 
   for (const action of ["toggleRepeat", "repeat"] as const) {
     safeSetHandler(action, () => {
       usePlayerStore.getState().cycleRepeat();
-      const { isShuffle, repeatMode } = usePlayerStore.getState();
-      syncMediaSessionModes(isShuffle, repeatMode);
+      const state = usePlayerStore.getState();
+      syncMediaSessionModes(state.isShuffle, state.repeatMode);
+      syncMediaSessionQueueNavigation(
+        state.currentTrack,
+        state.queue,
+        state.shuffledQueue,
+        state.isShuffle,
+        state.repeatMode,
+      );
     });
   }
+
+  const state = usePlayerStore.getState();
+  syncMediaSessionQueueNavigation(
+    state.currentTrack,
+    state.queue,
+    state.shuffledQueue,
+    state.isShuffle,
+    state.repeatMode,
+  );
 }
 
 export function clearMediaSessionActionHandlers(): void {
