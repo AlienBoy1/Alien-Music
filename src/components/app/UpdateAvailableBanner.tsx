@@ -15,7 +15,7 @@ export function UpdateAvailableBanner({
 }: UpdateAvailableBannerProps) {
   return (
     <div
-      className="fixed bottom-[calc(var(--player-height)+var(--mobile-nav-height)+8px)] left-0 right-0 z-[80] mx-auto max-w-lg px-4 md:bottom-[calc(var(--player-height)+8px)]"
+      className="fixed bottom-[var(--mobile-bottom-chrome,calc(var(--player-height)+8px))] left-0 right-0 z-[80] mx-auto max-w-lg px-4 md:bottom-[calc(var(--player-height)+8px)]"
       role="status"
     >
       <div className="flex items-center gap-3 rounded-xl border border-accent/40 bg-surface/95 px-4 py-3 shadow-[0_0_24px_rgba(0,255,159,0.12)] backdrop-blur-md">

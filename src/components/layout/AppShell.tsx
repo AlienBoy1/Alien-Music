@@ -41,7 +41,7 @@ export function AppShell({ children, session, playlists }: AppShellProps) {
           <div className="relative z-10 flex min-w-0 flex-1 flex-col">
             <OfflineBanner />
             <TopBar session={session} playlists={playlists} />
-            <main className="flex-1 overflow-y-auto bg-gradient-to-b from-surface-highlight/30 via-surface/50 to-surface pb-[calc(var(--player-height)+var(--mobile-nav-height))] md:pb-[var(--player-height)]">
+            <main className="flex-1 overflow-y-auto bg-gradient-to-b from-surface-highlight/30 via-surface/50 to-surface pb-[var(--mobile-bottom-chrome,0px)] md:pb-[var(--player-height)]">
               {children}
             </main>
           </div>

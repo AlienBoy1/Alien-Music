@@ -19,6 +19,7 @@ interface SongRowProps {
   playlists?: Playlist[];
   isAuthenticated?: boolean;
   showPlayNext?: boolean;
+  layout?: "default" | "spotify";
 }
 
 export const SongRow = memo(function SongRow({
@@ -28,6 +29,7 @@ export const SongRow = memo(function SongRow({
   playlists = [],
   isAuthenticated = false,
   showPlayNext = true,
+  layout = "default",
 }: SongRowProps) {
   const isCurrent = useIsTrackCurrent(song.id);
   const isPlaying = usePlayerStore(
@@ -62,30 +64,44 @@ export const SongRow = memo(function SongRow({
     playCollection(trackList, startIndex >= 0 ? startIndex : 0);
   }, [index, playCollection, song.id, trackList]);
 
+  const isSpotify = layout === "spotify";
+
   return (
     <div
-      className={`song-row-compact-target group flex w-full items-center gap-4 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-surface-highlight hover:shadow-[inset_0_0_16px_rgba(0,255,159,0.04)] ${
-        isCurrent ? "bg-surface-highlight/50 border-l-2 border-accent shadow-[inset_0_0_20px_rgba(0,255,159,0.06)]" : ""
+      className={`song-row-compact-target group flex w-full items-center gap-2 py-1 pl-1 pr-0 transition-colors hover:bg-white/5 md:gap-4 md:rounded-lg md:px-3 md:py-2 md:hover:bg-surface-highlight ${
+        isCurrent && !isSpotify
+          ? "bg-surface-highlight/50 border-l-2 border-accent shadow-[inset_0_0_20px_rgba(0,255,159,0.06)]"
+          : isCurrent && isSpotify
+            ? ""
+            : ""
       }`}
     >
       <button
         type="button"
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
-        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left md:gap-4"
       >
-        {index !== undefined && (
-          <span
-            className={`w-6 text-center text-sm group-hover:hidden ${
-              isCurrent ? "text-accent" : "text-text-muted"
-            }`}
-          >
-            {isPlaying ? "♪" : index + 1}
-          </span>
+        {!isSpotify && index !== undefined && (
+          <>
+            <span
+              className={`w-6 text-center text-sm group-hover:hidden ${
+                isCurrent ? "text-accent" : "text-text-muted"
+              }`}
+            >
+              {isPlaying ? "♪" : index + 1}
+            </span>
+            <span className="hidden w-6 text-center text-accent drop-shadow-[0_0_6px_rgba(0,255,159,0.5)] group-hover:block">
+              ▶
+            </span>
+          </>
         )}
-        <span className="hidden w-6 text-center text-accent drop-shadow-[0_0_6px_rgba(0,255,159,0.5)] group-hover:block">▶</span>
 
-        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded">
+        <div
+          className={`relative shrink-0 overflow-hidden bg-surface-highlight ${
+            isSpotify ? "h-12 w-12 rounded-sm" : "h-10 w-10 rounded"
+          }`}
+        >
           <Image
             src={song.coverUrl}
             alt={song.albumTitle ?? song.title}
@@ -95,21 +111,33 @@ export const SongRow = memo(function SongRow({
           />
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 py-0.5">
           <p
-            className={`truncate text-sm ${
-              isCurrent ? "font-medium text-accent" : ""
+            className={`truncate ${
+              isSpotify ? "text-base md:text-sm" : "text-sm"
+            } ${
+              isCurrent ? "font-medium text-accent" : isSpotify ? "font-normal text-white" : ""
             }`}
           >
             {song.title}
           </p>
-          <p className="truncate text-xs text-text-muted">{song.artist}</p>
+          <p
+            className={`truncate ${
+              isSpotify ? "text-sm text-neutral-400 md:text-xs" : "text-xs text-text-muted"
+            }`}
+          >
+            {isSpotify
+              ? `Canción • ${song.artist}`
+              : song.artist}
+          </p>
         </div>
 
-        <span className="text-xs text-text-muted">{formatTime(song.duration)}</span>
+        {!isSpotify && (
+          <span className="text-xs text-text-muted">{formatTime(song.duration)}</span>
+        )}
       </button>
 
-      {showPlayNext && (
+      {showPlayNext && !isSpotify && (
         <button
           type="button"
           onClick={() => playNext(track)}
@@ -125,6 +153,7 @@ export const SongRow = memo(function SongRow({
         songId={song.id}
         playlists={playlists}
         isAuthenticated={isAuthenticated}
+        layout={layout}
       />
     </div>
   );

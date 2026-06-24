@@ -20,6 +20,11 @@ interface YouTubeSearchRowProps {
   currentUserId?: string;
 }
 
+function kindLabelFor(item: YouTubeSearchItem): string {
+  if (item.category === "podcast") return "Podcast";
+  return "Canción";
+}
+
 export function YouTubeSearchRow({
   item,
   track,
@@ -52,25 +57,16 @@ export function YouTubeSearchRow({
     playCollection(videoQueue, index);
   };
 
+  const kind = kindLabelFor(item);
+
   return (
-    <div className="group flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-surface-highlight hover:shadow-[inset_0_0_16px_rgba(0,255,159,0.04)] sm:gap-4">
+    <div className="group flex w-full items-center gap-2 py-1 pl-1 pr-0 transition-colors hover:bg-white/5 md:rounded-lg md:px-2 md:py-2">
       <button
         type="button"
         onClick={handlePlay}
-        className="flex min-w-0 flex-1 items-center gap-3 text-left sm:gap-4"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        <span className="hidden w-6 shrink-0 text-center text-sm text-text-muted group-hover:hidden sm:inline">
-          {isCurrent ? (
-            <span className="text-accent">♪</span>
-          ) : (
-            index + 1
-          )}
-        </span>
-        <span className="hidden w-6 shrink-0 text-center text-accent drop-shadow-[0_0_6px_rgba(0,255,159,0.5)] group-hover:inline sm:group-hover:inline">
-          ▶
-        </span>
-
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-sm bg-surface-highlight">
           {item.thumbnailUrl ? (
             <Image
               src={item.thumbnailUrl}
@@ -80,31 +76,26 @@ export function YouTubeSearchRow({
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-surface-highlight text-text-muted">
+            <div className="flex h-full w-full items-center justify-center text-text-muted">
               ♪
             </div>
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 py-0.5">
           <p
-            className={`truncate text-sm ${
-              isCurrent ? "font-medium text-accent alien-glow-text" : ""
+            className={`truncate text-base md:text-sm ${
+              isCurrent ? "font-medium text-accent" : "font-normal text-white"
             }`}
           >
             {item.title}
           </p>
-          <p className="truncate text-xs text-text-muted">
-            {item.channelTitle}
-            {item.category === "podcast" && (
-              <span className="ml-2 rounded bg-alien-purple/20 px-1.5 py-0.5 text-[10px] text-alien-purple">
-                Podcast
-              </span>
-            )}
+          <p className="truncate text-sm text-neutral-400 md:text-xs">
+            {kind} • {item.channelTitle}
           </p>
         </div>
 
-        <span className="hidden shrink-0 text-xs text-text-muted sm:inline">
+        <span className="hidden shrink-0 text-xs text-text-muted lg:inline">
           {item.duration > 0 ? formatTime(item.duration) : "—"}
         </span>
       </button>
@@ -112,7 +103,7 @@ export function YouTubeSearchRow({
       <button
         type="button"
         onClick={handlePlayAsVideo}
-        className="hidden shrink-0 rounded-full p-2 text-text-muted opacity-0 transition-all hover:bg-surface-highlight hover:text-alien-cyan group-hover:opacity-100 md:block"
+        className="hidden shrink-0 rounded-full p-2 text-text-muted opacity-0 transition-all hover:bg-surface-highlight hover:text-alien-cyan group-hover:opacity-100 lg:block"
         title="Reproducir como video"
         aria-label="Reproducir como video"
       >
@@ -122,7 +113,7 @@ export function YouTubeSearchRow({
       <button
         type="button"
         onClick={handlePlay}
-        className="alien-btn-play hidden h-8 w-8 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 sm:flex"
+        className="alien-btn-play hidden h-8 w-8 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 lg:flex"
         aria-label={`Reproducir ${item.title}`}
       >
         <Play size={14} fill="currentColor" className="ml-0.5 text-black" />
@@ -132,6 +123,8 @@ export function YouTubeSearchRow({
         track={track}
         playlists={playlists}
         isAuthenticated={isAuthenticated}
+        layout="spotify"
+        kindLabel={kind}
       />
     </div>
   );

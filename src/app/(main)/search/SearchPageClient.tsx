@@ -12,6 +12,7 @@ import {
   type CarouselCard,
 } from "@/components/search/SearchHorizontalCarousel";
 import { SearchVideoCarousel } from "@/components/search/SearchVideoCarousel";
+import { YouTubeSearchRow } from "@/components/search/YouTubeSearchRow";
 import { searchMusicAction } from "@/app/actions/search";
 import { pickSearchTopResult } from "@/lib/search/topResult";
 import { useSearchStore } from "@/lib/stores/searchStore";
@@ -405,34 +406,26 @@ export default function SearchPageClient({
           )}
 
           {showVideos && songItems.length > 0 && (
-            <section className="mb-8">
-              <h2 className="mb-4 text-xl font-bold text-white">Canciones</h2>
-              <div className="flex flex-col gap-0.5">
-                {songItems.slice(0, 15).map((item, i) => {
+            <section className="mb-6">
+              <h2 className="mb-2 px-1 text-xl font-bold text-white">Canciones</h2>
+              <div className="flex flex-col">
+                {songItems.slice(0, 15).map((item) => {
                   const trackIndex = youtubeItems.findIndex(
                     (x) => x.youtubeId === item.youtubeId,
                   );
                   const track = youtubeTracks[trackIndex];
                   if (!track) return null;
                   return (
-                    <button
+                    <YouTubeSearchRow
                       key={item.youtubeId}
-                      type="button"
-                      onClick={() =>
-                        playCollection(youtubeTracks, trackIndex)
-                      }
-                      className="flex items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-surface-highlight"
-                    >
-                      <span className="w-5 text-center text-sm text-text-muted">
-                        {i + 1}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm text-white">
-                        {item.title}
-                      </span>
-                      <span className="truncate text-xs text-text-muted">
-                        {item.channelTitle}
-                      </span>
-                    </button>
+                      item={item}
+                      track={track}
+                      index={trackIndex}
+                      allTracks={youtubeTracks}
+                      playlists={playlists}
+                      isAuthenticated={!!session}
+                      currentUserId={currentUserId}
+                    />
                   );
                 })}
               </div>
@@ -451,6 +444,8 @@ export default function SearchPageClient({
                     queue={localResults.songs}
                     playlists={playlists}
                     isAuthenticated={!!session}
+                    layout="spotify"
+                    showPlayNext={false}
                   />
                 ))}
               </div>

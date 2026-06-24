@@ -28,7 +28,12 @@
 
 @media (max-width: 767px) {
   :root {
-    --player-height: 88px;
+    --player-height: 64px;
+    --mobile-nav-height: 56px;
+    --mobile-bottom-chrome: calc(
+      var(--player-height) + var(--mobile-nav-height) + 8px +
+        env(safe-area-inset-bottom, 0px)
+    );
   }
 }
 

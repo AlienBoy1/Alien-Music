@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Loader2, ListMusic, Maximize2, Mic2, MonitorSpeaker, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Volume2, VolumeX, X } from "lucide-react";
+import { Loader2, ListMusic, Maximize2, Mic2, MonitorSpeaker, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Volume2, VolumeX, X, Check, Plus } from "lucide-react";
 import { usePlayerStore, type VideoQuality } from "@/lib/stores/playerStore";
 import { formatTime } from "@/lib/utils/format";
 import { LikeButton } from "@/components/content/LikeButton";
+import { useLikesContext } from "@/components/providers/LikesProvider";
 import { AudioVisualizer } from "@/components/ui/AudioVisualizer";
 import { getActiveQueue } from "@/lib/player/queueUtils";
 import { COVER_SIZES } from "@/lib/images/coverSizes";
@@ -54,6 +55,8 @@ export function PlayerBar() {
   const isExpandedMode = usePlayerStore((s) => s.isExpandedMode);
   const isAutoplayFetching = usePlayerStore((s) => s.isAutoplayFetching);
 
+  const { likedSongIds } = useLikesContext();
+
   const cycleQuality = () => {
     const order: VideoQuality[] = ["low", "normal", "high", "extreme"];
     const idx = order.indexOf(videoQuality);
@@ -69,24 +72,31 @@ export function PlayerBar() {
           ? "Extrema"
           : "Normal";
 
+  const activeQueue = getActiveQueue(queue, shuffledQueue, isShuffle);
+  const isLiked =
+    currentTrack?.id && !currentTrack.isEphemeral
+      ? likedSongIds.has(currentTrack.id)
+      : false;
+
   if (!currentTrack) {
     return (
-      <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-[var(--player-height)] items-center justify-center border-t border-border bg-surface-elevated/90 px-4 text-sm text-text-muted backdrop-blur-xl">
-        <AudioVisualizer active={false} className="mr-3" />
-        Selecciona una canción para reproducir
-      </footer>
+      <>
+        <footer className="fixed bottom-0 left-0 right-0 z-50 hidden h-[var(--player-height)] items-center justify-center border-t border-border bg-surface-elevated/90 px-4 text-sm text-text-muted backdrop-blur-xl md:flex">
+          <AudioVisualizer active={false} className="mr-3" />
+          Selecciona una canción para reproducir
+        </footer>
+      </>
     );
   }
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const volumePercent = (isMuted ? 0 : volume) * 100;
-  const activeQueue = getActiveQueue(queue, shuffledQueue, isShuffle);
 
   return (
     <>
       <LyricsPanel />
       {isQueueOpen && (
-        <div className="fixed bottom-[var(--player-height)] right-0 z-50 flex h-80 w-80 flex-col border border-border bg-surface-elevated/95 shadow-2xl backdrop-blur-xl animate-fade-in-up md:right-4 md:rounded-t-xl alien-border-glow">
+        <div className="fixed bottom-[var(--mobile-bottom-chrome,var(--player-height))] right-0 z-50 flex h-80 w-full flex-col border border-border bg-surface-elevated/95 shadow-2xl backdrop-blur-xl animate-fade-in-up md:bottom-[var(--player-height)] md:right-4 md:w-80 md:rounded-t-xl alien-border-glow">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h3 className="font-display text-sm font-bold tracking-wide text-alien-gradient">
               Cola de reproducción
@@ -145,45 +155,121 @@ export function PlayerBar() {
         </div>
       )}
 
-      <footer className={`fixed bottom-0 left-0 right-0 z-50 flex min-h-[var(--player-height)] flex-col border-t border-border bg-surface-elevated/90 backdrop-blur-xl md:h-[var(--player-height)] md:flex-row md:items-center md:px-4 ${isExpandedMode ? "hidden" : ""}`}>
-        {/* Barra de progreso móvil */}
-        <div
-          className="h-0.5 w-full bg-surface-highlight md:hidden"
-          aria-hidden
-        >
+      {/* Minireproductor flotante móvil (estilo Spotify) */}
+      <div
+        className={`fixed left-0 right-0 z-50 px-2 md:hidden ${
+          isExpandedMode ? "hidden" : ""
+        }`}
+        style={{
+          bottom:
+            "calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 4px)",
+        }}
+      >
+        <div className="relative overflow-hidden rounded-lg bg-[#282828] shadow-[0_-4px_24px_rgba(0,0,0,0.45)]">
           <div
-            className="h-full bg-accent transition-[width] duration-150"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-
-        <div className="flex min-h-0 flex-1 items-center px-3 md:contents">
-        <button
-          type="button"
-          onClick={() => toggleExpandedMode()}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left md:pointer-events-none md:cursor-default"
-          aria-label="Abrir reproductor completo"
-        >
-          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg md:h-14 md:w-14">
-            <Image
-              src={currentTrack.coverUrl}
-              alt={currentTrack.albumTitle}
-              fill
-              sizes={COVER_SIZES.player}
-              className={`object-cover ${isPlaying ? "animate-alien-pulse" : ""}`}
+            className="absolute inset-x-0 bottom-0 h-[2px] bg-neutral-600"
+            aria-hidden
+          >
+            <div
+              className="h-full bg-white transition-[width] duration-150"
+              style={{ width: `${progressPercent}%` }}
             />
-            {isPlaying && (
-              <div className="pointer-events-none absolute inset-0 ring-1 ring-accent/40 ring-inset" />
-            )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-accent alien-glow-text">
-              {currentTrack.title}
-            </p>
-            <p className="truncate text-xs text-text-muted">{currentTrack.artistName}</p>
+
+          <div className="flex items-center gap-2 px-2 py-2">
+            <button
+              type="button"
+              onClick={() => toggleExpandedMode()}
+              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+              aria-label="Abrir reproductor completo"
+            >
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-sm">
+                <Image
+                  src={currentTrack.coverUrl}
+                  alt={currentTrack.albumTitle}
+                  fill
+                  sizes={COVER_SIZES.player}
+                  className="object-cover"
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">
+                  {currentTrack.title}
+                </p>
+                <p className="truncate text-xs text-neutral-400">
+                  {currentTrack.artistName}
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="flex h-9 w-9 shrink-0 items-center justify-center text-white/90"
+              aria-label="Dispositivo"
+            >
+              <MonitorSpeaker size={20} />
+            </button>
+
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+              {isLiked ? (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent">
+                  <Check size={15} className="text-black" strokeWidth={3} />
+                </span>
+              ) : (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-500 text-neutral-400">
+                  <Plus size={15} strokeWidth={2.5} />
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={togglePlay}
+              disabled={isLoading && !isPlaying}
+              className="flex h-9 w-9 shrink-0 items-center justify-center text-white disabled:opacity-70"
+              aria-label={isPlaying ? "Pausar" : "Reproducir"}
+            >
+              {isLoading && isPlaying ? (
+                <Loader2 size={22} className="animate-spin" />
+              ) : isPlaying ? (
+                <Pause size={24} fill="currentColor" />
+              ) : (
+                <Play size={24} fill="currentColor" className="ml-0.5" />
+              )}
+            </button>
           </div>
-        </button>
-          <LikeButton songId={currentTrack.id} className="hidden md:block" />
+        </div>
+      </div>
+
+      {/* Barra de escritorio + fallback móvil oculto */}
+      <footer className={`fixed bottom-0 left-0 right-0 z-50 hidden h-[var(--player-height)] border-t border-border bg-surface-elevated/90 backdrop-blur-xl md:flex md:items-center md:px-4 ${isExpandedMode ? "md:hidden" : ""}`}>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => toggleExpandedMode()}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left md:pointer-events-none md:cursor-default"
+            aria-label="Abrir reproductor completo"
+          >
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg">
+              <Image
+                src={currentTrack.coverUrl}
+                alt={currentTrack.albumTitle}
+                fill
+                sizes={COVER_SIZES.player}
+                className={`object-cover ${isPlaying ? "animate-alien-pulse" : ""}`}
+              />
+              {isPlaying && (
+                <div className="pointer-events-none absolute inset-0 ring-1 ring-accent/40 ring-inset" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-accent alien-glow-text">
+                {currentTrack.title}
+              </p>
+              <p className="truncate text-xs text-text-muted">{currentTrack.artistName}</p>
+            </div>
+          </button>
+          <LikeButton songId={currentTrack.id} />
         </div>
 
         <div className="hidden flex-[2] flex-col items-center gap-1 px-2 md:flex">
@@ -269,33 +355,6 @@ export function PlayerBar() {
             />
             <span className="w-10 text-xs text-text-muted">{formatTime(duration)}</span>
           </div>
-        </div>
-
-        {/* Controles compactos móvil */}
-        <div className="flex shrink-0 items-center gap-3 px-3 pb-2 md:hidden">
-          <button
-            type="button"
-            onClick={togglePlay}
-            disabled={isLoading && !isPlaying}
-            className="alien-btn-play flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-80"
-            aria-label={isPlaying ? "Pausar" : "Reproducir"}
-          >
-            {isLoading && isPlaying ? (
-              <Loader2 size={16} className="animate-spin text-black" />
-            ) : isPlaying ? (
-              <Pause size={16} fill="currentColor" />
-            ) : (
-              <Play size={16} fill="currentColor" className="ml-0.5" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={next}
-            className="text-text-muted"
-            aria-label="Siguiente"
-          >
-            <SkipForward size={20} fill="currentColor" />
-          </button>
         </div>
 
         <div className="absolute inset-x-0 top-0 hidden h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent md:block" />
